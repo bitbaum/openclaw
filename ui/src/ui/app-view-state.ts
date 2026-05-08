@@ -219,6 +219,8 @@ export type AppViewState = {
   logsLimit: number;
   logsMaxBytes: number;
   logsAtBottom: boolean;
+  dashboardLoading: boolean;
+  dashboardLastRefreshedAt: number | null;
   client: GatewayBrowserClient | null;
   refreshSessionsAfterChat: Set<string>;
   connect: () => void;

@@ -27,7 +27,7 @@ describe("iconForTab", () => {
 
   it("returns stable icons for known tabs", () => {
     expect(iconForTab("chat")).toBe("messageSquare");
-    expect(iconForTab("overview")).toBe("barChart");
+    expect(iconForTab("overview")).toBe("globe");
     expect(iconForTab("channels")).toBe("link");
     expect(iconForTab("instances")).toBe("radio");
     expect(iconForTab("sessions")).toBe("fileText");
@@ -57,7 +57,7 @@ describe("titleForTab", () => {
 
   it("returns expected titles", () => {
     expect(titleForTab("chat")).toBe("Chat");
-    expect(titleForTab("overview")).toBe("Overview");
+    expect(titleForTab("overview")).toBe("Dashboard");
     expect(titleForTab("cron")).toBe("Cron Jobs");
   });
 });
@@ -116,7 +116,7 @@ describe("normalizePath", () => {
 describe("pathForTab", () => {
   it("returns correct path without base", () => {
     expect(pathForTab("chat")).toBe("/chat");
-    expect(pathForTab("overview")).toBe("/overview");
+    expect(pathForTab("overview")).toBe("/dashboard");
   });
 
   it("prepends base path", () => {
@@ -128,8 +128,12 @@ describe("pathForTab", () => {
 describe("tabFromPath", () => {
   it("returns tab for valid path", () => {
     expect(tabFromPath("/chat")).toBe("chat");
-    expect(tabFromPath("/overview")).toBe("overview");
+    expect(tabFromPath("/dashboard")).toBe("overview");
     expect(tabFromPath("/sessions")).toBe("sessions");
+  });
+
+  it("resolves /overview as backwards-compat alias for dashboard", () => {
+    expect(tabFromPath("/overview")).toBe("overview");
   });
 
   it("returns chat for root path", () => {

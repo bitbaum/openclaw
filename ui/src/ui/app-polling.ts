@@ -7,6 +7,7 @@ type PollingHost = {
   nodesPollInterval: number | null;
   logsPollInterval: number | null;
   debugPollInterval: number | null;
+  dashboardPollInterval: number | null;
   tab: string;
 };
 
@@ -66,4 +67,27 @@ export function stopDebugPolling(host: PollingHost) {
   }
   clearInterval(host.debugPollInterval);
   host.debugPollInterval = null;
+}
+
+export function startDashboardPolling(
+  host: PollingHost,
+  loadOverview: (host: PollingHost) => Promise<void>,
+) {
+  if (host.dashboardPollInterval != null) {
+    return;
+  }
+  host.dashboardPollInterval = window.setInterval(() => {
+    if (host.tab !== "overview") {
+      return;
+    }
+    void loadOverview(host);
+  }, 30_000);
+}
+
+export function stopDashboardPolling(host: PollingHost) {
+  if (host.dashboardPollInterval == null) {
+    return;
+  }
+  clearInterval(host.dashboardPollInterval);
+  host.dashboardPollInterval = null;
 }

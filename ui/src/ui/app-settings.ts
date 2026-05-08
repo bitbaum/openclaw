@@ -6,6 +6,8 @@ import {
   stopLogsPolling,
   startDebugPolling,
   stopDebugPolling,
+  startDashboardPolling,
+  stopDashboardPolling,
 } from "./app-polling.ts";
 import { scheduleChatScroll, scheduleLogsScroll } from "./app-scroll.ts";
 import { loadAgentIdentities, loadAgentIdentity } from "./controllers/agent-identity.ts";
@@ -54,6 +56,8 @@ type SettingsHost = {
   themeMedia: MediaQueryList | null;
   themeMediaHandler: ((event: MediaQueryListEvent) => void) | null;
   pendingGatewayUrl?: string | null;
+  dashboardLoading?: boolean;
+  dashboardLastRefreshedAt?: number | null;
 };
 
 export function applySettings(host: SettingsHost, next: UiSettings) {
@@ -106,10 +110,9 @@ export function applySettingsFromUrl(host: SettingsHost) {
   }
 
   if (passwordRaw != null) {
-    const password = passwordRaw.trim();
-    if (password) {
-      (host as { password: string }).password = password;
-    }
+    // Strip the password param from the URL but do NOT import it — passwords are
+    // user-entered secrets and should not be auto-populated from URL params (unlike
+    // tokens, which are generated API keys safe to share in links).
     params.delete("password");
     hashParams.delete("password");
     shouldCleanUrl = true;
@@ -146,13 +149,7 @@ export function applySettingsFromUrl(host: SettingsHost) {
   window.history.replaceState({}, "", url.toString());
 }
 
-export function setTab(host: SettingsHost, next: Tab) {
-  if (host.tab !== next) {
-    host.tab = next;
-  }
-  if (next === "chat") {
-    host.chatHasAutoScrolled = false;
-  }
+function syncPollingForTab(host: SettingsHost, next: Tab) {
   if (next === "logs") {
     startLogsPolling(host as unknown as Parameters<typeof startLogsPolling>[0]);
   } else {
@@ -163,6 +160,23 @@ export function setTab(host: SettingsHost, next: Tab) {
   } else {
     stopDebugPolling(host as unknown as Parameters<typeof stopDebugPolling>[0]);
   }
+  if (next === "overview") {
+    startDashboardPolling(host as unknown as Parameters<typeof startDashboardPolling>[0], (h) =>
+      loadOverview(h as unknown as SettingsHost),
+    );
+  } else {
+    stopDashboardPolling(host as unknown as Parameters<typeof stopDashboardPolling>[0]);
+  }
+}
+
+export function setTab(host: SettingsHost, next: Tab) {
+  if (host.tab !== next) {
+    host.tab = next;
+  }
+  if (next === "chat") {
+    host.chatHasAutoScrolled = false;
+  }
+  syncPollingForTab(host, next);
   void refreshActiveTab(host);
   syncUrlWithTab(host, next, false);
 }
@@ -352,16 +366,7 @@ export function setTabFromRoute(host: SettingsHost, next: Tab) {
   if (next === "chat") {
     host.chatHasAutoScrolled = false;
   }
-  if (next === "logs") {
-    startLogsPolling(host as unknown as Parameters<typeof startLogsPolling>[0]);
-  } else {
-    stopLogsPolling(host as unknown as Parameters<typeof stopLogsPolling>[0]);
-  }
-  if (next === "debug") {
-    startDebugPolling(host as unknown as Parameters<typeof startDebugPolling>[0]);
-  } else {
-    stopDebugPolling(host as unknown as Parameters<typeof stopDebugPolling>[0]);
-  }
+  syncPollingForTab(host, next);
   if (host.connected) {
     void refreshActiveTab(host);
   }
@@ -406,13 +411,20 @@ export function syncUrlWithSessionKey(host: SettingsHost, sessionKey: string, re
 }
 
 export async function loadOverview(host: SettingsHost) {
-  await Promise.all([
-    loadChannels(host as unknown as OpenClawApp, false),
-    loadPresence(host as unknown as OpenClawApp),
-    loadSessions(host as unknown as OpenClawApp),
-    loadCronStatus(host as unknown as OpenClawApp),
-    loadDebug(host as unknown as OpenClawApp),
-  ]);
+  host.dashboardLoading = true;
+  try {
+    await Promise.all([
+      loadChannels(host as unknown as OpenClawApp, false),
+      loadPresence(host as unknown as OpenClawApp),
+      loadSessions(host as unknown as OpenClawApp),
+      loadCronStatus(host as unknown as OpenClawApp),
+      loadCronJobs(host as unknown as OpenClawApp),
+      loadAgents(host as unknown as OpenClawApp),
+    ]);
+    host.dashboardLastRefreshedAt = Date.now();
+  } finally {
+    host.dashboardLoading = false;
+  }
 }
 
 export async function loadChannelsTab(host: SettingsHost) {

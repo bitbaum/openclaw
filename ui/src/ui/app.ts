@@ -323,6 +323,8 @@ export class OpenClawApp extends LitElement {
   @state() logsLimit = 500;
   @state() logsMaxBytes = 250_000;
   @state() logsAtBottom = true;
+  @state() dashboardLoading = false;
+  @state() dashboardLastRefreshedAt: number | null = null;
 
   client: GatewayBrowserClient | null = null;
   private chatScrollFrame: number | null = null;
@@ -333,6 +335,7 @@ export class OpenClawApp extends LitElement {
   private nodesPollInterval: number | null = null;
   private logsPollInterval: number | null = null;
   private debugPollInterval: number | null = null;
+  private dashboardPollInterval: number | null = null;
   private logsScrollFrame: number | null = null;
   private toolStreamById = new Map<string, ToolStreamEntry>();
   private toolStreamOrder: string[] = [];

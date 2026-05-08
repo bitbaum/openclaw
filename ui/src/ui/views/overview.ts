@@ -1,260 +1,283 @@
-import { html } from "lit";
+import { html, nothing } from "lit";
 import type { GatewayHelloOk } from "../gateway.ts";
-import type { UiSettings } from "../storage.ts";
+import type { Tab } from "../navigation.ts";
+import type { AgentsListResult, ChannelsStatusSnapshot, CronJob, CronStatus } from "../types.ts";
+import { DEFAULT_ASSISTANT_NAME } from "../assistant-identity.ts";
 import { formatRelativeTimestamp, formatDurationHuman } from "../format.ts";
 import { formatNextRun } from "../presenter.ts";
+import { resolveChannelStatus } from "./channels.shared.ts";
 
-export type OverviewProps = {
+export type DashboardProps = {
   connected: boolean;
   hello: GatewayHelloOk | null;
-  settings: UiSettings;
-  password: string;
+  assistantName: string;
+  assistantAvatar: string | null;
   lastError: string | null;
   presenceCount: number;
   sessionsCount: number | null;
-  cronEnabled: boolean | null;
-  cronNext: number | null;
-  lastChannelsRefresh: number | null;
-  onSettingsChange: (next: UiSettings) => void;
-  onPasswordChange: (next: string) => void;
-  onSessionKeyChange: (next: string) => void;
-  onConnect: () => void;
+  channelsSnapshot: ChannelsStatusSnapshot | null;
+  cronStatus: CronStatus | null;
+  cronJobs: CronJob[];
+  agentsList: AgentsListResult | null;
+  loading: boolean;
+  lastRefreshedAt: number | null;
+  onNavigate: (tab: Tab) => void;
   onRefresh: () => void;
+  onConnect: () => void;
 };
 
-export function renderOverview(props: OverviewProps) {
+export function renderDashboard(props: DashboardProps) {
   const snapshot = props.hello?.snapshot as
     | { uptimeMs?: number; policy?: { tickIntervalMs?: number } }
     | undefined;
   const uptime = snapshot?.uptimeMs ? formatDurationHuman(snapshot.uptimeMs) : "n/a";
   const tick = snapshot?.policy?.tickIntervalMs ? `${snapshot.policy.tickIntervalMs}ms` : "n/a";
-  const authHint = (() => {
-    if (props.connected || !props.lastError) {
-      return null;
+
+  const title =
+    props.assistantName && props.assistantName !== DEFAULT_ASSISTANT_NAME
+      ? `${props.assistantName} Dashboard`
+      : "Dashboard";
+
+  const refreshLabel = props.lastRefreshedAt
+    ? `Updated ${formatRelativeTimestamp(props.lastRefreshedAt)}`
+    : null;
+
+  // Channels list
+  const channelEntries = (() => {
+    const snap = props.channelsSnapshot;
+    if (!snap) {
+      return [];
     }
-    const lower = props.lastError.toLowerCase();
-    const authFailed = lower.includes("unauthorized") || lower.includes("connect failed");
-    if (!authFailed) {
-      return null;
+    if (snap.channelMeta && snap.channelMeta.length > 0) {
+      return snap.channelMeta.map((m) => {
+        const s = resolveChannelStatus(snap, m.id);
+        return { id: m.id, label: m.label, status: s.cssClass, statusLabel: s.label };
+      });
     }
-    const hasToken = Boolean(props.settings.token.trim());
-    const hasPassword = Boolean(props.password.trim());
-    if (!hasToken && !hasPassword) {
-      return html`
-        <div class="muted" style="margin-top: 8px">
-          This gateway requires auth. Add a token or password, then click Connect.
-          <div style="margin-top: 6px">
-            <span class="mono">openclaw dashboard --no-open</span> → open the Control UI<br />
-            <span class="mono">openclaw doctor --generate-gateway-token</span> → set token
-          </div>
-          <div style="margin-top: 6px">
-            <a
-              class="session-link"
-              href="https://docs.openclaw.ai/web/dashboard"
-              target="_blank"
-              rel="noreferrer"
-              title="Control UI auth docs (opens in new tab)"
-              >Docs: Control UI auth</a
-            >
-          </div>
-        </div>
-      `;
-    }
-    return html`
-      <div class="muted" style="margin-top: 8px">
-        Auth failed. Update the token or password in Control UI settings, then click Connect.
-        <div style="margin-top: 6px">
-          <a
-            class="session-link"
-            href="https://docs.openclaw.ai/web/dashboard"
-            target="_blank"
-            rel="noreferrer"
-            title="Control UI auth docs (opens in new tab)"
-            >Docs: Control UI auth</a
-          >
-        </div>
-      </div>
-    `;
+    return snap.channelOrder.map((id) => {
+      const s = resolveChannelStatus(snap, id);
+      return { id, label: snap.channelLabels[id] ?? id, status: s.cssClass, statusLabel: s.label };
+    });
   })();
-  const insecureContextHint = (() => {
-    if (props.connected || !props.lastError) {
-      return null;
-    }
-    const isSecureContext = typeof window !== "undefined" ? window.isSecureContext : true;
-    if (isSecureContext) {
-      return null;
-    }
-    const lower = props.lastError.toLowerCase();
-    if (!lower.includes("secure context") && !lower.includes("device identity required")) {
-      return null;
-    }
-    return html`
-      <div class="muted" style="margin-top: 8px">
-        This page is HTTP, so the browser blocks device identity. Use HTTPS (Tailscale Serve) or open
-        <span class="mono">http://127.0.0.1:18789</span> on the gateway host.
-        <div style="margin-top: 6px">
-          If you must stay on HTTP, set
-          <span class="mono">gateway.controlUi.allowInsecureAuth: true</span> (token-only).
-        </div>
-        <div style="margin-top: 6px">
-          <a
-            class="session-link"
-            href="https://docs.openclaw.ai/gateway/tailscale"
-            target="_blank"
-            rel="noreferrer"
-            title="Tailscale Serve docs (opens in new tab)"
-            >Docs: Tailscale Serve</a
-          >
-          <span class="muted"> · </span>
-          <a
-            class="session-link"
-            href="https://docs.openclaw.ai/web/control-ui#insecure-http"
-            target="_blank"
-            rel="noreferrer"
-            title="Insecure HTTP docs (opens in new tab)"
-            >Docs: Insecure HTTP</a
-          >
-        </div>
-      </div>
-    `;
-  })();
+
+  // Cron jobs (top 5)
+  const cronJobsPreview = props.cronJobs.slice(0, 5);
+
+  // Agents
+  const agents = props.agentsList?.agents ?? [];
+  const defaultAgentId = props.agentsList?.defaultId ?? null;
 
   return html`
-    <section class="grid grid-cols-2">
-      <div class="card">
-        <div class="card-title">Gateway Access</div>
-        <div class="card-sub">Where the dashboard connects and how it authenticates.</div>
-        <div class="form-grid" style="margin-top: 16px;">
-          <label class="field">
-            <span>WebSocket URL</span>
-            <input
-              .value=${props.settings.gatewayUrl}
-              @input=${(e: Event) => {
-                const v = (e.target as HTMLInputElement).value;
-                props.onSettingsChange({ ...props.settings, gatewayUrl: v });
-              }}
-              placeholder="ws://100.x.y.z:18789"
-            />
-          </label>
-          <label class="field">
-            <span>Gateway Token</span>
-            <input
-              .value=${props.settings.token}
-              @input=${(e: Event) => {
-                const v = (e.target as HTMLInputElement).value;
-                props.onSettingsChange({ ...props.settings, token: v });
-              }}
-              placeholder="OPENCLAW_GATEWAY_TOKEN"
-            />
-          </label>
-          <label class="field">
-            <span>Password (not stored)</span>
-            <input
-              type="password"
-              .value=${props.password}
-              @input=${(e: Event) => {
-                const v = (e.target as HTMLInputElement).value;
-                props.onPasswordChange(v);
-              }}
-              placeholder="system or shared password"
-            />
-          </label>
-          <label class="field">
-            <span>Default Session Key</span>
-            <input
-              .value=${props.settings.sessionKey}
-              @input=${(e: Event) => {
-                const v = (e.target as HTMLInputElement).value;
-                props.onSessionKeyChange(v);
-              }}
-            />
-          </label>
+    <!-- Dashboard header -->
+    <div class="row" style="justify-content: space-between; align-items: center; margin-bottom: 18px;">
+      <div>
+        <div style="font-size: 20px; font-weight: 700; color: var(--text-strong);">
+          ${props.assistantAvatar ? html`<span style="margin-right: 6px;">${props.assistantAvatar}</span>` : nothing}${title}
         </div>
-        <div class="row" style="margin-top: 14px;">
-          <button class="btn" @click=${() => props.onConnect()}>Connect</button>
-          <button class="btn" @click=${() => props.onRefresh()}>Refresh</button>
-          <span class="muted">Click Connect to apply connection changes.</span>
+        ${refreshLabel ? html`<div class="muted" style="font-size: 12px; margin-top: 2px;">${refreshLabel}</div>` : nothing}
+      </div>
+      <div class="row" style="gap: 8px;">
+        ${
+          !props.connected
+            ? html`<button class="btn" @click=${() => props.onConnect()}>Connect</button>`
+            : nothing
+        }
+        <button class="btn" @click=${() => props.onRefresh()} ?disabled=${props.loading}>
+          ${props.loading ? "Refreshing..." : "Refresh"}
+        </button>
+      </div>
+    </div>
+
+    <!-- Connection error banner -->
+    ${
+      !props.connected && props.lastError
+        ? html`
+          <div class="callout danger" style="margin-bottom: 18px;">
+            <div>${props.lastError}</div>
+            <div class="muted" style="margin-top: 6px;">
+              Check gateway settings in
+              <a class="session-link" href="javascript:void(0)" @click=${() => props.onNavigate("config")}>Config</a>
+              or run <span class="mono">openclaw doctor</span>.
+            </div>
+          </div>
+        `
+        : nothing
+    }
+
+    <!-- Row 1: System Health / Sessions / Instances -->
+    <section class="grid grid-cols-3">
+      <div class="card stat-card">
+        <div class="stat-label">System Health</div>
+        <div class="stat-value ${props.connected ? "ok" : "warn"}">
+          ${props.connected ? "Connected" : "Disconnected"}
+        </div>
+        <div class="stat-grid" style="margin-top: 12px;">
+          <div class="stat">
+            <div class="stat-label">Uptime</div>
+            <div class="stat-value" style="font-size: 16px;">${uptime}</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Tick</div>
+            <div class="stat-value" style="font-size: 16px;">${tick}</div>
+          </div>
         </div>
       </div>
 
-      <div class="card">
-        <div class="card-title">Snapshot</div>
-        <div class="card-sub">Latest gateway handshake information.</div>
-        <div class="stat-grid" style="margin-top: 16px;">
-          <div class="stat">
-            <div class="stat-label">Status</div>
-            <div class="stat-value ${props.connected ? "ok" : "warn"}">
-              ${props.connected ? "Connected" : "Disconnected"}
-            </div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">Uptime</div>
-            <div class="stat-value">${uptime}</div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">Tick Interval</div>
-            <div class="stat-value">${tick}</div>
-          </div>
-          <div class="stat">
-            <div class="stat-label">Last Channels Refresh</div>
-            <div class="stat-value">
-              ${props.lastChannelsRefresh ? formatRelativeTimestamp(props.lastChannelsRefresh) : "n/a"}
-            </div>
-          </div>
+      <div
+        class="card stat-card"
+        style="cursor: pointer;"
+        @click=${() => props.onNavigate("sessions")}
+        title="View sessions"
+      >
+        <div class="stat-label">Sessions</div>
+        <div class="stat-value">${props.sessionsCount ?? "n/a"}</div>
+        <div class="muted">active sessions</div>
+      </div>
+
+      <div
+        class="card stat-card"
+        style="cursor: pointer;"
+        @click=${() => props.onNavigate("instances")}
+        title="View instances"
+      >
+        <div class="stat-label">Instances</div>
+        <div class="stat-value">${props.presenceCount}</div>
+        <div class="muted">presence beacons</div>
+      </div>
+    </section>
+
+    <!-- Row 2: Channels / Cron -->
+    <section class="grid grid-cols-2" style="margin-top: 18px;">
+      <div
+        class="card"
+        style="cursor: pointer;"
+        @click=${() => props.onNavigate("channels")}
+        title="View channels"
+      >
+        <div class="card-title">Channels</div>
+        <div class="card-sub">Message integrations</div>
+        ${
+          channelEntries.length === 0
+            ? html`
+                <div class="muted" style="margin-top: 12px">No channels loaded</div>
+              `
+            : html`
+              <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px;">
+                ${channelEntries.map(
+                  (ch) => html`
+                    <div class="row" style="gap: 8px; align-items: center;">
+                      <span class="statusDot ${ch.status}"></span>
+                      <span style="font-weight: 500;">${ch.label}</span>
+                      <span class="muted" style="font-size: 12px;">${ch.statusLabel}</span>
+                    </div>
+                  `,
+                )}
+              </div>
+            `
+        }
+      </div>
+
+      <div
+        class="card"
+        style="cursor: pointer;"
+        @click=${() => props.onNavigate("cron")}
+        title="View cron jobs"
+      >
+        <div class="card-title">Cron</div>
+        <div class="card-sub">
+          ${
+            props.cronStatus
+              ? html`
+                <span class="chip ${props.cronStatus.enabled ? "chip-ok" : ""}">${props.cronStatus.enabled ? "Enabled" : "Disabled"}</span>
+                <span style="margin-left: 6px;">${props.cronStatus.jobs} job${props.cronStatus.jobs !== 1 ? "s" : ""}</span>
+                <span class="muted" style="margin-left: 6px;">Next ${formatNextRun(props.cronStatus.nextWakeAtMs ?? null)}</span>
+              `
+              : "Not loaded"
+          }
         </div>
         ${
-          props.lastError
-            ? html`<div class="callout danger" style="margin-top: 14px;">
-              <div>${props.lastError}</div>
-              ${authHint ?? ""}
-              ${insecureContextHint ?? ""}
-            </div>`
+          cronJobsPreview.length > 0
+            ? html`
+              <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 6px;">
+                ${cronJobsPreview.map(
+                  (job) => html`
+                    <div class="row" style="gap: 8px; align-items: center; justify-content: space-between;">
+                      <span style="font-weight: 500; font-size: 13px;">${job.name}</span>
+                      <div class="row" style="gap: 6px; align-items: center;">
+                        ${
+                          job.state?.lastStatus
+                            ? html`<span class="chip ${job.state.lastStatus === "ok" ? "chip-ok" : job.state.lastStatus === "error" ? "chip-danger" : ""}" style="font-size: 11px;">${job.state.lastStatus}</span>`
+                            : html`
+                                <span class="muted" style="font-size: 11px">no runs</span>
+                              `
+                        }
+                        <span class="chip" style="font-size: 11px;">${job.enabled ? "on" : "off"}</span>
+                      </div>
+                    </div>
+                  `,
+                )}
+              </div>
+            `
             : html`
-                <div class="callout" style="margin-top: 14px">
-                  Use Channels to link WhatsApp, Telegram, Discord, Signal, or iMessage.
-                </div>
+                <div class="muted" style="margin-top: 12px">No cron jobs configured</div>
               `
         }
       </div>
     </section>
 
-    <section class="grid grid-cols-3" style="margin-top: 18px;">
-      <div class="card stat-card">
-        <div class="stat-label">Instances</div>
-        <div class="stat-value">${props.presenceCount}</div>
-        <div class="muted">Presence beacons in the last 5 minutes.</div>
+    <!-- Row 3: Agents / Usage -->
+    <section class="grid grid-cols-2" style="margin-top: 18px;">
+      <div
+        class="card"
+        style="cursor: pointer;"
+        @click=${() => props.onNavigate("agents")}
+        title="View agents"
+      >
+        <div class="card-title">Agents</div>
+        <div class="card-sub">${agents.length} agent${agents.length !== 1 ? "s" : ""} configured</div>
+        ${
+          agents.length > 0
+            ? html`
+              <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 6px;">
+                ${agents.map(
+                  (agent) => html`
+                    <div class="row" style="gap: 8px; align-items: center;">
+                      ${
+                        agent.identity?.emoji
+                          ? html`<span>${agent.identity.emoji}</span>`
+                          : html`
+                              <span class="statusDot ok"></span>
+                            `
+                      }
+                      <span style="font-weight: 500;">${agent.identity?.name ?? agent.name ?? agent.id}</span>
+                      ${
+                        agent.id === defaultAgentId
+                          ? html`
+                              <span class="chip" style="font-size: 11px">default</span>
+                            `
+                          : nothing
+                      }
+                    </div>
+                  `,
+                )}
+              </div>
+            `
+            : html`
+                <div class="muted" style="margin-top: 12px">No agents configured</div>
+              `
+        }
       </div>
-      <div class="card stat-card">
-        <div class="stat-label">Sessions</div>
-        <div class="stat-value">${props.sessionsCount ?? "n/a"}</div>
-        <div class="muted">Recent session keys tracked by the gateway.</div>
-      </div>
-      <div class="card stat-card">
-        <div class="stat-label">Cron</div>
-        <div class="stat-value">
-          ${props.cronEnabled == null ? "n/a" : props.cronEnabled ? "Enabled" : "Disabled"}
-        </div>
-        <div class="muted">Next wake ${formatNextRun(props.cronNext)}</div>
-      </div>
-    </section>
 
-    <section class="card" style="margin-top: 18px;">
-      <div class="card-title">Notes</div>
-      <div class="card-sub">Quick reminders for remote control setups.</div>
-      <div class="note-grid" style="margin-top: 14px;">
-        <div>
-          <div class="note-title">Tailscale serve</div>
-          <div class="muted">
-            Prefer serve mode to keep the gateway on loopback with tailnet auth.
-          </div>
-        </div>
-        <div>
-          <div class="note-title">Session hygiene</div>
-          <div class="muted">Use /new or sessions.patch to reset context.</div>
-        </div>
-        <div>
-          <div class="note-title">Cron reminders</div>
-          <div class="muted">Use isolated sessions for recurring runs.</div>
+      <div
+        class="card"
+        style="cursor: pointer;"
+        @click=${() => props.onNavigate("usage")}
+        title="View usage"
+      >
+        <div class="card-title">Usage</div>
+        <div class="card-sub">Token usage and cost tracking</div>
+        <div class="muted" style="margin-top: 12px;">
+          Click to view detailed usage analytics, session breakdowns, and cost summaries.
         </div>
       </div>
     </section>

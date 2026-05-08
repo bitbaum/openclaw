@@ -27,7 +27,7 @@ export type Tab =
 
 const TAB_PATHS: Record<Tab, string> = {
   agents: "/agents",
-  overview: "/overview",
+  overview: "/dashboard",
   channels: "/channels",
   instances: "/instances",
   sessions: "/sessions",
@@ -41,7 +41,10 @@ const TAB_PATHS: Record<Tab, string> = {
   logs: "/logs",
 };
 
-const PATH_TO_TAB = new Map(Object.entries(TAB_PATHS).map(([tab, path]) => [path, tab as Tab]));
+const PATH_TO_TAB = new Map<string, Tab>([
+  ...Object.entries(TAB_PATHS).map(([tab, path]) => [path, tab as Tab] as const),
+  ["/overview", "overview"], // backwards-compat alias
+]);
 
 export function normalizeBasePath(basePath: string): string {
   if (!basePath) {
@@ -129,7 +132,7 @@ export function iconForTab(tab: Tab): IconName {
     case "chat":
       return "messageSquare";
     case "overview":
-      return "barChart";
+      return "globe";
     case "channels":
       return "link";
     case "instances":
@@ -160,7 +163,7 @@ export function titleForTab(tab: Tab) {
     case "agents":
       return "Agents";
     case "overview":
-      return "Overview";
+      return "Dashboard";
     case "channels":
       return "Channels";
     case "instances":
@@ -193,7 +196,7 @@ export function subtitleForTab(tab: Tab) {
     case "agents":
       return "Manage agent workspaces, tools, and identities.";
     case "overview":
-      return "Gateway status, entry points, and a fast health read.";
+      return "System health, channels, sessions, agents, and cron at a glance.";
     case "channels":
       return "Manage channels and settings.";
     case "instances":

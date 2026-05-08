@@ -156,7 +156,7 @@ describe("control UI routing", () => {
     await app.updateComplete;
 
     expect(app.settings.token).toBe("abc123");
-    expect(window.location.pathname).toBe("/ui/overview");
+    expect(window.location.pathname).toBe("/ui/dashboard");
     expect(window.location.search).toBe("");
   });
 
@@ -165,7 +165,7 @@ describe("control UI routing", () => {
     await app.updateComplete;
 
     expect(app.password).toBe("");
-    expect(window.location.pathname).toBe("/ui/overview");
+    expect(window.location.pathname).toBe("/ui/dashboard");
     expect(window.location.search).toBe("");
   });
 
@@ -178,7 +178,7 @@ describe("control UI routing", () => {
     await app.updateComplete;
 
     expect(app.settings.token).toBe("abc123");
-    expect(window.location.pathname).toBe("/ui/overview");
+    expect(window.location.pathname).toBe("/ui/dashboard");
     expect(window.location.search).toBe("");
   });
 
@@ -187,7 +187,7 @@ describe("control UI routing", () => {
     await app.updateComplete;
 
     expect(app.settings.token).toBe("abc123");
-    expect(window.location.pathname).toBe("/ui/overview");
+    expect(window.location.pathname).toBe("/ui/dashboard");
     expect(window.location.hash).toBe("");
   });
 });

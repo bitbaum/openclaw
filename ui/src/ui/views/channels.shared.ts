@@ -1,6 +1,31 @@
 import { html, nothing } from "lit";
-import type { ChannelAccountSnapshot } from "../types.ts";
+import type { ChannelAccountSnapshot, ChannelsStatusSnapshot } from "../types.ts";
 import type { ChannelKey, ChannelsProps } from "./channels.types.ts";
+
+export type ChannelStatusSummary = {
+  cssClass: "ok" | "warn" | "danger" | "";
+  label: string;
+};
+
+export function resolveChannelStatus(
+  snapshot: ChannelsStatusSnapshot,
+  channelId: string,
+): ChannelStatusSummary {
+  const accounts = snapshot.channelAccounts[channelId] ?? [];
+  if (accounts.length === 0) {
+    return { cssClass: "", label: "Not configured" };
+  }
+  if (accounts.some((a) => a.connected)) {
+    return { cssClass: "ok", label: "Connected" };
+  }
+  if (accounts.some((a) => a.running)) {
+    return { cssClass: "warn", label: "Running" };
+  }
+  if (accounts.some((a) => a.lastError)) {
+    return { cssClass: "danger", label: "Error" };
+  }
+  return { cssClass: "", label: "Inactive" };
+}
 
 export function channelEnabled(key: ChannelKey, props: ChannelsProps) {
   const snapshot = props.snapshot;

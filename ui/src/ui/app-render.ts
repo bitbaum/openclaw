@@ -73,7 +73,7 @@ import { renderGatewayUrlConfirmation } from "./views/gateway-url-confirmation.t
 import { renderInstances } from "./views/instances.ts";
 import { renderLogs } from "./views/logs.ts";
 import { renderNodes } from "./views/nodes.ts";
-import { renderOverview } from "./views/overview.ts";
+import { renderDashboard } from "./views/overview.ts";
 import { renderSessions } from "./views/sessions.ts";
 import { renderSkills } from "./views/skills.ts";
 import { renderUsage } from "./views/usage.ts";
@@ -100,7 +100,6 @@ function resolveAssistantAvatarUrl(state: AppViewState): string | undefined {
 export function renderApp(state: AppViewState) {
   const presenceCount = state.presenceEntries.length;
   const sessionsCount = state.sessionsResult?.count ?? null;
-  const cronNext = state.cronStatus?.nextWakeAtMs ?? null;
   const chatDisabledReason = state.connected ? null : "Disconnected from gateway.";
   const isChat = state.tab === "chat";
   const chatFocus = isChat && (state.settings.chatFocusMode || state.onboarding);
@@ -199,8 +198,8 @@ export function renderApp(state: AppViewState) {
       <main class="content ${isChat ? "content--chat" : ""}">
         <section class="content-header">
           <div>
-            ${state.tab === "usage" ? nothing : html`<div class="page-title">${titleForTab(state.tab)}</div>`}
-            ${state.tab === "usage" ? nothing : html`<div class="page-sub">${subtitleForTab(state.tab)}</div>`}
+            ${state.tab === "usage" || state.tab === "overview" ? nothing : html`<div class="page-title">${titleForTab(state.tab)}</div>`}
+            ${state.tab === "usage" || state.tab === "overview" ? nothing : html`<div class="page-sub">${subtitleForTab(state.tab)}</div>`}
           </div>
           <div class="page-meta">
             ${state.lastError ? html`<div class="pill danger">${state.lastError}</div>` : nothing}
@@ -210,32 +209,23 @@ export function renderApp(state: AppViewState) {
 
         ${
           state.tab === "overview"
-            ? renderOverview({
+            ? renderDashboard({
                 connected: state.connected,
                 hello: state.hello,
-                settings: state.settings,
-                password: state.password,
+                assistantName: state.assistantName,
+                assistantAvatar: state.assistantAvatar,
                 lastError: state.lastError,
                 presenceCount,
                 sessionsCount,
-                cronEnabled: state.cronStatus?.enabled ?? null,
-                cronNext,
-                lastChannelsRefresh: state.channelsLastSuccess,
-                onSettingsChange: (next) => state.applySettings(next),
-                onPasswordChange: (next) => (state.password = next),
-                onSessionKeyChange: (next) => {
-                  state.sessionKey = next;
-                  state.chatMessage = "";
-                  state.resetToolStream();
-                  state.applySettings({
-                    ...state.settings,
-                    sessionKey: next,
-                    lastActiveSessionKey: next,
-                  });
-                  void state.loadAssistantIdentity();
-                },
-                onConnect: () => state.connect(),
+                channelsSnapshot: state.channelsSnapshot,
+                cronStatus: state.cronStatus,
+                cronJobs: state.cronJobs,
+                agentsList: state.agentsList,
+                loading: state.dashboardLoading,
+                lastRefreshedAt: state.dashboardLastRefreshedAt,
+                onNavigate: (tab) => state.setTab(tab),
                 onRefresh: () => state.loadOverview(),
+                onConnect: () => state.connect(),
               })
             : nothing
         }
