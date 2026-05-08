@@ -40,7 +40,7 @@ import {
 } from "../session-utils.js";
 import { applySessionsPatchToStore } from "../sessions-patch.js";
 import { resolveSessionKeyFromResolveParams } from "../sessions-resolve.js";
-import { rejectBadParams } from "./validation.js";
+import { extractRequiredString, rejectBadParams } from "./validation.js";
 
 export const sessionsHandlers: GatewayRequestHandlers = {
   "sessions.list": ({ params, respond }) => {
@@ -139,9 +139,8 @@ export const sessionsHandlers: GatewayRequestHandlers = {
       return;
     }
     const p = params;
-    const key = String(p.key ?? "").trim();
-    if (!key) {
-      respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "key required"));
+    const key = extractRequiredString(respond, p.key, "key");
+    if (key === null) {
       return;
     }
 
@@ -188,9 +187,8 @@ export const sessionsHandlers: GatewayRequestHandlers = {
       return;
     }
     const p = params;
-    const key = String(p.key ?? "").trim();
-    if (!key) {
-      respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "key required"));
+    const key = extractRequiredString(respond, p.key, "key");
+    if (key === null) {
       return;
     }
 
@@ -239,9 +237,8 @@ export const sessionsHandlers: GatewayRequestHandlers = {
       return;
     }
     const p = params;
-    const key = String(p.key ?? "").trim();
-    if (!key) {
-      respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "key required"));
+    const key = extractRequiredString(respond, p.key, "key");
+    if (key === null) {
       return;
     }
 
@@ -324,9 +321,8 @@ export const sessionsHandlers: GatewayRequestHandlers = {
       return;
     }
     const p = params;
-    const key = String(p.key ?? "").trim();
-    if (!key) {
-      respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "key required"));
+    const key = extractRequiredString(respond, p.key, "key");
+    if (key === null) {
       return;
     }
 
