@@ -11,13 +11,13 @@ import {
 import {
   ErrorCodes,
   errorShape,
-  formatValidationErrors,
   validateDevicePairApproveParams,
   validateDevicePairListParams,
   validateDevicePairRejectParams,
   validateDeviceTokenRevokeParams,
   validateDeviceTokenRotateParams,
 } from "../protocol/index.js";
+import { rejectBadParams } from "./validation.js";
 
 function redactPairedDevice(
   device: { tokens?: Record<string, DeviceAuthToken> } & Record<string, unknown>,
@@ -32,16 +32,7 @@ function redactPairedDevice(
 export const deviceHandlers: GatewayRequestHandlers = {
   "device.pair.list": async ({ params, respond }) => {
     if (!validateDevicePairListParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid device.pair.list params: ${formatValidationErrors(
-            validateDevicePairListParams.errors,
-          )}`,
-        ),
-      );
+      rejectBadParams(respond, validateDevicePairListParams.errors, "device.pair.list");
       return;
     }
     const list = await listDevicePairing();
@@ -56,16 +47,7 @@ export const deviceHandlers: GatewayRequestHandlers = {
   },
   "device.pair.approve": async ({ params, respond, context }) => {
     if (!validateDevicePairApproveParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid device.pair.approve params: ${formatValidationErrors(
-            validateDevicePairApproveParams.errors,
-          )}`,
-        ),
-      );
+      rejectBadParams(respond, validateDevicePairApproveParams.errors, "device.pair.approve");
       return;
     }
     const { requestId } = params as { requestId: string };
@@ -91,16 +73,7 @@ export const deviceHandlers: GatewayRequestHandlers = {
   },
   "device.pair.reject": async ({ params, respond, context }) => {
     if (!validateDevicePairRejectParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid device.pair.reject params: ${formatValidationErrors(
-            validateDevicePairRejectParams.errors,
-          )}`,
-        ),
-      );
+      rejectBadParams(respond, validateDevicePairRejectParams.errors, "device.pair.reject");
       return;
     }
     const { requestId } = params as { requestId: string };
@@ -123,16 +96,7 @@ export const deviceHandlers: GatewayRequestHandlers = {
   },
   "device.token.rotate": async ({ params, respond, context }) => {
     if (!validateDeviceTokenRotateParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid device.token.rotate params: ${formatValidationErrors(
-            validateDeviceTokenRotateParams.errors,
-          )}`,
-        ),
-      );
+      rejectBadParams(respond, validateDeviceTokenRotateParams.errors, "device.token.rotate");
       return;
     }
     const { deviceId, role, scopes } = params as {
@@ -162,16 +126,7 @@ export const deviceHandlers: GatewayRequestHandlers = {
   },
   "device.token.revoke": async ({ params, respond, context }) => {
     if (!validateDeviceTokenRevokeParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid device.token.revoke params: ${formatValidationErrors(
-            validateDeviceTokenRevokeParams.errors,
-          )}`,
-        ),
-      );
+      rejectBadParams(respond, validateDeviceTokenRevokeParams.errors, "device.token.revoke");
       return;
     }
     const { deviceId, role } = params as { deviceId: string; role: string };

@@ -32,7 +32,6 @@ import { resolveUserPath } from "../../utils.js";
 import {
   ErrorCodes,
   errorShape,
-  formatValidationErrors,
   validateAgentsCreateParams,
   validateAgentsDeleteParams,
   validateAgentsFilesGetParams,
@@ -42,6 +41,7 @@ import {
   validateAgentsUpdateParams,
 } from "../protocol/index.js";
 import { listAgentsForGateway } from "../session-utils.js";
+import { rejectBadParams } from "./validation.js";
 
 const BOOTSTRAP_FILE_NAMES = [
   DEFAULT_AGENTS_FILENAME,
@@ -167,14 +167,7 @@ async function moveToTrashBestEffort(pathname: string): Promise<void> {
 export const agentsHandlers: GatewayRequestHandlers = {
   "agents.list": ({ params, respond }) => {
     if (!validateAgentsListParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid agents.list params: ${formatValidationErrors(validateAgentsListParams.errors)}`,
-        ),
-      );
+      rejectBadParams(respond, validateAgentsListParams.errors, "agents.list");
       return;
     }
 
@@ -184,16 +177,7 @@ export const agentsHandlers: GatewayRequestHandlers = {
   },
   "agents.create": async ({ params, respond }) => {
     if (!validateAgentsCreateParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid agents.create params: ${formatValidationErrors(
-            validateAgentsCreateParams.errors,
-          )}`,
-        ),
-      );
+      rejectBadParams(respond, validateAgentsCreateParams.errors, "agents.create");
       return;
     }
 
@@ -256,16 +240,7 @@ export const agentsHandlers: GatewayRequestHandlers = {
   },
   "agents.update": async ({ params, respond }) => {
     if (!validateAgentsUpdateParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid agents.update params: ${formatValidationErrors(
-            validateAgentsUpdateParams.errors,
-          )}`,
-        ),
-      );
+      rejectBadParams(respond, validateAgentsUpdateParams.errors, "agents.update");
       return;
     }
 
@@ -315,16 +290,7 @@ export const agentsHandlers: GatewayRequestHandlers = {
   },
   "agents.delete": async ({ params, respond }) => {
     if (!validateAgentsDeleteParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid agents.delete params: ${formatValidationErrors(
-            validateAgentsDeleteParams.errors,
-          )}`,
-        ),
-      );
+      rejectBadParams(respond, validateAgentsDeleteParams.errors, "agents.delete");
       return;
     }
 
@@ -367,16 +333,7 @@ export const agentsHandlers: GatewayRequestHandlers = {
   },
   "agents.files.list": async ({ params, respond }) => {
     if (!validateAgentsFilesListParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid agents.files.list params: ${formatValidationErrors(
-            validateAgentsFilesListParams.errors,
-          )}`,
-        ),
-      );
+      rejectBadParams(respond, validateAgentsFilesListParams.errors, "agents.files.list");
       return;
     }
     const cfg = loadConfig();
@@ -391,16 +348,7 @@ export const agentsHandlers: GatewayRequestHandlers = {
   },
   "agents.files.get": async ({ params, respond }) => {
     if (!validateAgentsFilesGetParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid agents.files.get params: ${formatValidationErrors(
-            validateAgentsFilesGetParams.errors,
-          )}`,
-        ),
-      );
+      rejectBadParams(respond, validateAgentsFilesGetParams.errors, "agents.files.get");
       return;
     }
     const cfg = loadConfig();
@@ -453,16 +401,7 @@ export const agentsHandlers: GatewayRequestHandlers = {
   },
   "agents.files.set": async ({ params, respond }) => {
     if (!validateAgentsFilesSetParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid agents.files.set params: ${formatValidationErrors(
-            validateAgentsFilesSetParams.errors,
-          )}`,
-        ),
-      );
+      rejectBadParams(respond, validateAgentsFilesSetParams.errors, "agents.files.set");
       return;
     }
     const cfg = loadConfig();

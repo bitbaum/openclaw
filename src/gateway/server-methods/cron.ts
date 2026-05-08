@@ -6,7 +6,6 @@ import { validateScheduleTimestamp } from "../../cron/validate-timestamp.js";
 import {
   ErrorCodes,
   errorShape,
-  formatValidationErrors,
   validateCronAddParams,
   validateCronListParams,
   validateCronRemoveParams,
@@ -16,18 +15,12 @@ import {
   validateCronUpdateParams,
   validateWakeParams,
 } from "../protocol/index.js";
+import { rejectBadParams } from "./validation.js";
 
 export const cronHandlers: GatewayRequestHandlers = {
   wake: ({ params, respond, context }) => {
     if (!validateWakeParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid wake params: ${formatValidationErrors(validateWakeParams.errors)}`,
-        ),
-      );
+      rejectBadParams(respond, validateWakeParams.errors, "wake");
       return;
     }
     const p = params as {
@@ -39,14 +32,7 @@ export const cronHandlers: GatewayRequestHandlers = {
   },
   "cron.list": async ({ params, respond, context }) => {
     if (!validateCronListParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid cron.list params: ${formatValidationErrors(validateCronListParams.errors)}`,
-        ),
-      );
+      rejectBadParams(respond, validateCronListParams.errors, "cron.list");
       return;
     }
     const p = params as { includeDisabled?: boolean };
@@ -57,14 +43,7 @@ export const cronHandlers: GatewayRequestHandlers = {
   },
   "cron.status": async ({ params, respond, context }) => {
     if (!validateCronStatusParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid cron.status params: ${formatValidationErrors(validateCronStatusParams.errors)}`,
-        ),
-      );
+      rejectBadParams(respond, validateCronStatusParams.errors, "cron.status");
       return;
     }
     const status = await context.cron.status();
@@ -73,14 +52,7 @@ export const cronHandlers: GatewayRequestHandlers = {
   "cron.add": async ({ params, respond, context }) => {
     const normalized = normalizeCronJobCreate(params) ?? params;
     if (!validateCronAddParams(normalized)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid cron.add params: ${formatValidationErrors(validateCronAddParams.errors)}`,
-        ),
-      );
+      rejectBadParams(respond, validateCronAddParams.errors, "cron.add");
       return;
     }
     const jobCreate = normalized as unknown as CronJobCreate;
@@ -103,14 +75,7 @@ export const cronHandlers: GatewayRequestHandlers = {
         ? { ...params, patch: normalizedPatch }
         : params;
     if (!validateCronUpdateParams(candidate)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid cron.update params: ${formatValidationErrors(validateCronUpdateParams.errors)}`,
-        ),
-      );
+      rejectBadParams(respond, validateCronUpdateParams.errors, "cron.update");
       return;
     }
     const p = candidate as {
@@ -144,14 +109,7 @@ export const cronHandlers: GatewayRequestHandlers = {
   },
   "cron.remove": async ({ params, respond, context }) => {
     if (!validateCronRemoveParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid cron.remove params: ${formatValidationErrors(validateCronRemoveParams.errors)}`,
-        ),
-      );
+      rejectBadParams(respond, validateCronRemoveParams.errors, "cron.remove");
       return;
     }
     const p = params as { id?: string; jobId?: string };
@@ -169,14 +127,7 @@ export const cronHandlers: GatewayRequestHandlers = {
   },
   "cron.run": async ({ params, respond, context }) => {
     if (!validateCronRunParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid cron.run params: ${formatValidationErrors(validateCronRunParams.errors)}`,
-        ),
-      );
+      rejectBadParams(respond, validateCronRunParams.errors, "cron.run");
       return;
     }
     const p = params as { id?: string; jobId?: string; mode?: "due" | "force" };
@@ -194,14 +145,7 @@ export const cronHandlers: GatewayRequestHandlers = {
   },
   "cron.runs": async ({ params, respond, context }) => {
     if (!validateCronRunsParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid cron.runs params: ${formatValidationErrors(validateCronRunsParams.errors)}`,
-        ),
-      );
+      rejectBadParams(respond, validateCronRunsParams.errors, "cron.runs");
       return;
     }
     const p = params as { id?: string; jobId?: string; limit?: number };

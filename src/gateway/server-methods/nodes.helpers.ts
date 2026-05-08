@@ -1,26 +1,6 @@
-import type { ErrorObject } from "ajv";
 import type { RespondFn } from "./types.js";
-import { ErrorCodes, errorShape, formatValidationErrors } from "../protocol/index.js";
+import { ErrorCodes, errorShape } from "../protocol/index.js";
 import { formatForLog } from "../ws-log.js";
-
-type ValidatorFn = ((value: unknown) => boolean) & {
-  errors?: ErrorObject[] | null;
-};
-
-export function respondInvalidParams(params: {
-  respond: RespondFn;
-  method: string;
-  validator: ValidatorFn;
-}) {
-  params.respond(
-    false,
-    undefined,
-    errorShape(
-      ErrorCodes.INVALID_REQUEST,
-      `invalid ${params.method} params: ${formatValidationErrors(params.validator.errors)}`,
-    ),
-  );
-}
 
 export async function respondUnavailableOnThrow(respond: RespondFn, fn: () => Promise<void>) {
   try {

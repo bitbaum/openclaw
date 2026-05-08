@@ -5,25 +5,18 @@ import { WizardSession } from "../../wizard/session.js";
 import {
   ErrorCodes,
   errorShape,
-  formatValidationErrors,
   validateWizardCancelParams,
   validateWizardNextParams,
   validateWizardStartParams,
   validateWizardStatusParams,
 } from "../protocol/index.js";
 import { formatForLog } from "../ws-log.js";
+import { rejectBadParams } from "./validation.js";
 
 export const wizardHandlers: GatewayRequestHandlers = {
   "wizard.start": async ({ params, respond, context }) => {
     if (!validateWizardStartParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid wizard.start params: ${formatValidationErrors(validateWizardStartParams.errors)}`,
-        ),
-      );
+      rejectBadParams(respond, validateWizardStartParams.errors, "wizard.start");
       return;
     }
     const running = context.findRunningWizard();
@@ -48,14 +41,7 @@ export const wizardHandlers: GatewayRequestHandlers = {
   },
   "wizard.next": async ({ params, respond, context }) => {
     if (!validateWizardNextParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid wizard.next params: ${formatValidationErrors(validateWizardNextParams.errors)}`,
-        ),
-      );
+      rejectBadParams(respond, validateWizardNextParams.errors, "wizard.next");
       return;
     }
     const sessionId = params.sessionId;
@@ -85,14 +71,7 @@ export const wizardHandlers: GatewayRequestHandlers = {
   },
   "wizard.cancel": ({ params, respond, context }) => {
     if (!validateWizardCancelParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid wizard.cancel params: ${formatValidationErrors(validateWizardCancelParams.errors)}`,
-        ),
-      );
+      rejectBadParams(respond, validateWizardCancelParams.errors, "wizard.cancel");
       return;
     }
     const sessionId = params.sessionId;
@@ -111,14 +90,7 @@ export const wizardHandlers: GatewayRequestHandlers = {
   },
   "wizard.status": ({ params, respond, context }) => {
     if (!validateWizardStatusParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid wizard.status params: ${formatValidationErrors(validateWizardStatusParams.errors)}`,
-        ),
-      );
+      rejectBadParams(respond, validateWizardStatusParams.errors, "wizard.status");
       return;
     }
     const sessionId = params.sessionId;

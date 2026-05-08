@@ -25,12 +25,8 @@ import {
   validateNodePairVerifyParams,
   validateNodeRenameParams,
 } from "../protocol/index.js";
-import {
-  respondInvalidParams,
-  respondUnavailableOnThrow,
-  safeParseJson,
-  uniqueSortedStrings,
-} from "./nodes.helpers.js";
+import { respondUnavailableOnThrow, safeParseJson, uniqueSortedStrings } from "./nodes.helpers.js";
+import { rejectBadParams } from "./validation.js";
 
 function isNodeEntry(entry: { role?: string; roles?: string[] }) {
   if (entry.role === "node") {
@@ -65,11 +61,7 @@ function normalizeNodeInvokeResultParams(params: unknown): unknown {
 export const nodeHandlers: GatewayRequestHandlers = {
   "node.pair.request": async ({ params, respond, context }) => {
     if (!validateNodePairRequestParams(params)) {
-      respondInvalidParams({
-        respond,
-        method: "node.pair.request",
-        validator: validateNodePairRequestParams,
-      });
+      rejectBadParams(respond, validateNodePairRequestParams.errors, "node.pair.request");
       return;
     }
     const p = params as {
@@ -111,11 +103,7 @@ export const nodeHandlers: GatewayRequestHandlers = {
   },
   "node.pair.list": async ({ params, respond }) => {
     if (!validateNodePairListParams(params)) {
-      respondInvalidParams({
-        respond,
-        method: "node.pair.list",
-        validator: validateNodePairListParams,
-      });
+      rejectBadParams(respond, validateNodePairListParams.errors, "node.pair.list");
       return;
     }
     await respondUnavailableOnThrow(respond, async () => {
@@ -125,11 +113,7 @@ export const nodeHandlers: GatewayRequestHandlers = {
   },
   "node.pair.approve": async ({ params, respond, context }) => {
     if (!validateNodePairApproveParams(params)) {
-      respondInvalidParams({
-        respond,
-        method: "node.pair.approve",
-        validator: validateNodePairApproveParams,
-      });
+      rejectBadParams(respond, validateNodePairApproveParams.errors, "node.pair.approve");
       return;
     }
     const { requestId } = params as { requestId: string };
@@ -154,11 +138,7 @@ export const nodeHandlers: GatewayRequestHandlers = {
   },
   "node.pair.reject": async ({ params, respond, context }) => {
     if (!validateNodePairRejectParams(params)) {
-      respondInvalidParams({
-        respond,
-        method: "node.pair.reject",
-        validator: validateNodePairRejectParams,
-      });
+      rejectBadParams(respond, validateNodePairRejectParams.errors, "node.pair.reject");
       return;
     }
     const { requestId } = params as { requestId: string };
@@ -183,11 +163,7 @@ export const nodeHandlers: GatewayRequestHandlers = {
   },
   "node.pair.verify": async ({ params, respond }) => {
     if (!validateNodePairVerifyParams(params)) {
-      respondInvalidParams({
-        respond,
-        method: "node.pair.verify",
-        validator: validateNodePairVerifyParams,
-      });
+      rejectBadParams(respond, validateNodePairVerifyParams.errors, "node.pair.verify");
       return;
     }
     const { nodeId, token } = params as {
@@ -201,11 +177,7 @@ export const nodeHandlers: GatewayRequestHandlers = {
   },
   "node.rename": async ({ params, respond }) => {
     if (!validateNodeRenameParams(params)) {
-      respondInvalidParams({
-        respond,
-        method: "node.rename",
-        validator: validateNodeRenameParams,
-      });
+      rejectBadParams(respond, validateNodeRenameParams.errors, "node.rename");
       return;
     }
     const { nodeId, displayName } = params as {
@@ -228,11 +200,7 @@ export const nodeHandlers: GatewayRequestHandlers = {
   },
   "node.list": async ({ params, respond, context }) => {
     if (!validateNodeListParams(params)) {
-      respondInvalidParams({
-        respond,
-        method: "node.list",
-        validator: validateNodeListParams,
-      });
+      rejectBadParams(respond, validateNodeListParams.errors, "node.list");
       return;
     }
     await respondUnavailableOnThrow(respond, async () => {
@@ -309,11 +277,7 @@ export const nodeHandlers: GatewayRequestHandlers = {
   },
   "node.describe": async ({ params, respond, context }) => {
     if (!validateNodeDescribeParams(params)) {
-      respondInvalidParams({
-        respond,
-        method: "node.describe",
-        validator: validateNodeDescribeParams,
-      });
+      rejectBadParams(respond, validateNodeDescribeParams.errors, "node.describe");
       return;
     }
     const { nodeId } = params as { nodeId: string };
@@ -363,11 +327,7 @@ export const nodeHandlers: GatewayRequestHandlers = {
   },
   "node.invoke": async ({ params, respond, context }) => {
     if (!validateNodeInvokeParams(params)) {
-      respondInvalidParams({
-        respond,
-        method: "node.invoke",
-        validator: validateNodeInvokeParams,
-      });
+      rejectBadParams(respond, validateNodeInvokeParams.errors, "node.invoke");
       return;
     }
     const p = params as {
@@ -451,11 +411,7 @@ export const nodeHandlers: GatewayRequestHandlers = {
   "node.invoke.result": async ({ params, respond, context, client }) => {
     const normalizedParams = normalizeNodeInvokeResultParams(params);
     if (!validateNodeInvokeResultParams(normalizedParams)) {
-      respondInvalidParams({
-        respond,
-        method: "node.invoke.result",
-        validator: validateNodeInvokeResultParams,
-      });
+      rejectBadParams(respond, validateNodeInvokeResultParams.errors, "node.invoke.result");
       return;
     }
     const p = normalizedParams as {
@@ -490,11 +446,7 @@ export const nodeHandlers: GatewayRequestHandlers = {
   },
   "node.event": async ({ params, respond, context, client }) => {
     if (!validateNodeEventParams(params)) {
-      respondInvalidParams({
-        respond,
-        method: "node.event",
-        validator: validateNodeEventParams,
-      });
+      rejectBadParams(respond, validateNodeEventParams.errors, "node.event");
       return;
     }
     const p = params as { event: string; payload?: unknown; payloadJSON?: string | null };

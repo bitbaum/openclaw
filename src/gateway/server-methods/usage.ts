@@ -22,17 +22,13 @@ import {
   type DiscoveredSession,
 } from "../../infra/session-cost-usage.js";
 import { parseAgentSessionKey } from "../../routing/session-key.js";
-import {
-  ErrorCodes,
-  errorShape,
-  formatValidationErrors,
-  validateSessionsUsageParams,
-} from "../protocol/index.js";
+import { ErrorCodes, errorShape, validateSessionsUsageParams } from "../protocol/index.js";
 import {
   listAgentsForGateway,
   loadCombinedSessionStoreForGateway,
   loadSessionEntry,
 } from "../session-utils.js";
+import { rejectBadParams } from "./validation.js";
 
 const COST_USAGE_CACHE_TTL_MS = 30_000;
 
@@ -269,14 +265,7 @@ export const usageHandlers: GatewayRequestHandlers = {
   },
   "sessions.usage": async ({ respond, params }) => {
     if (!validateSessionsUsageParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid sessions.usage params: ${formatValidationErrors(validateSessionsUsageParams.errors)}`,
-        ),
-      );
+      rejectBadParams(respond, validateSessionsUsageParams.errors, "sessions.usage");
       return;
     }
 

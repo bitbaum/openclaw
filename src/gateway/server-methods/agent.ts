@@ -32,7 +32,6 @@ import { GATEWAY_CLIENT_CAPS, hasGatewayClientCap } from "../protocol/client-inf
 import {
   ErrorCodes,
   errorShape,
-  formatValidationErrors,
   validateAgentIdentityParams,
   validateAgentParams,
   validateAgentWaitParams,
@@ -41,19 +40,13 @@ import { loadSessionEntry } from "../session-utils.js";
 import { formatForLog } from "../ws-log.js";
 import { waitForAgentJob } from "./agent-job.js";
 import { injectTimestamp, timestampOptsFromConfig } from "./agent-timestamp.js";
+import { rejectBadParams } from "./validation.js";
 
 export const agentHandlers: GatewayRequestHandlers = {
   agent: async ({ params, respond, context, client }) => {
     const p = params;
     if (!validateAgentParams(p)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid agent params: ${formatValidationErrors(validateAgentParams.errors)}`,
-        ),
-      );
+      rejectBadParams(respond, validateAgentParams.errors, "agent");
       return;
     }
     const request = p as {
@@ -441,16 +434,7 @@ export const agentHandlers: GatewayRequestHandlers = {
   },
   "agent.identity.get": ({ params, respond }) => {
     if (!validateAgentIdentityParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid agent.identity.get params: ${formatValidationErrors(
-            validateAgentIdentityParams.errors,
-          )}`,
-        ),
-      );
+      rejectBadParams(respond, validateAgentIdentityParams.errors, "agent.identity.get");
       return;
     }
     const p = params;
@@ -484,14 +468,7 @@ export const agentHandlers: GatewayRequestHandlers = {
   },
   "agent.wait": async ({ params, respond }) => {
     if (!validateAgentWaitParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid agent.wait params: ${formatValidationErrors(validateAgentWaitParams.errors)}`,
-        ),
-      );
+      rejectBadParams(respond, validateAgentWaitParams.errors, "agent.wait");
       return;
     }
     const p = params;

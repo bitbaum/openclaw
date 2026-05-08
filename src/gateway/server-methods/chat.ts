@@ -23,7 +23,6 @@ import { GATEWAY_CLIENT_CAPS, hasGatewayClientCap } from "../protocol/client-inf
 import {
   ErrorCodes,
   errorShape,
-  formatValidationErrors,
   validateChatAbortParams,
   validateChatHistoryParams,
   validateChatInjectParams,
@@ -38,6 +37,7 @@ import {
 } from "../session-utils.js";
 import { formatForLog } from "../ws-log.js";
 import { injectTimestamp, timestampOptsFromConfig } from "./agent-timestamp.js";
+import { rejectBadParams } from "./validation.js";
 
 type TranscriptAppendResult = {
   ok: boolean;
@@ -202,14 +202,7 @@ function broadcastChatError(params: {
 export const chatHandlers: GatewayRequestHandlers = {
   "chat.history": async ({ params, respond, context }) => {
     if (!validateChatHistoryParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid chat.history params: ${formatValidationErrors(validateChatHistoryParams.errors)}`,
-        ),
-      );
+      rejectBadParams(respond, validateChatHistoryParams.errors, "chat.history");
       return;
     }
     const { sessionKey, limit } = params as {
@@ -255,14 +248,7 @@ export const chatHandlers: GatewayRequestHandlers = {
   },
   "chat.abort": ({ params, respond, context }) => {
     if (!validateChatAbortParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid chat.abort params: ${formatValidationErrors(validateChatAbortParams.errors)}`,
-        ),
-      );
+      rejectBadParams(respond, validateChatAbortParams.errors, "chat.abort");
       return;
     }
     const { sessionKey, runId } = params as {
@@ -317,14 +303,7 @@ export const chatHandlers: GatewayRequestHandlers = {
   },
   "chat.send": async ({ params, respond, context, client }) => {
     if (!validateChatSendParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid chat.send params: ${formatValidationErrors(validateChatSendParams.errors)}`,
-        ),
-      );
+      rejectBadParams(respond, validateChatSendParams.errors, "chat.send");
       return;
     }
     const p = params as {
@@ -641,14 +620,7 @@ export const chatHandlers: GatewayRequestHandlers = {
   },
   "chat.inject": async ({ params, respond, context }) => {
     if (!validateChatInjectParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid chat.inject params: ${formatValidationErrors(validateChatInjectParams.errors)}`,
-        ),
-      );
+      rejectBadParams(respond, validateChatInjectParams.errors, "chat.inject");
       return;
     }
     const p = params as {

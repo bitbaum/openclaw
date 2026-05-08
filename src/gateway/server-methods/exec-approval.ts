@@ -5,10 +5,10 @@ import type { GatewayRequestHandlers } from "./types.js";
 import {
   ErrorCodes,
   errorShape,
-  formatValidationErrors,
   validateExecApprovalRequestParams,
   validateExecApprovalResolveParams,
 } from "../protocol/index.js";
+import { rejectBadParams } from "./validation.js";
 
 export function createExecApprovalHandlers(
   manager: ExecApprovalManager,
@@ -17,16 +17,7 @@ export function createExecApprovalHandlers(
   return {
     "exec.approval.request": async ({ params, respond, context }) => {
       if (!validateExecApprovalRequestParams(params)) {
-        respond(
-          false,
-          undefined,
-          errorShape(
-            ErrorCodes.INVALID_REQUEST,
-            `invalid exec.approval.request params: ${formatValidationErrors(
-              validateExecApprovalRequestParams.errors,
-            )}`,
-          ),
-        );
+        rejectBadParams(respond, validateExecApprovalRequestParams.errors, "exec.approval.request");
         return;
       }
       const p = params as {
@@ -97,16 +88,7 @@ export function createExecApprovalHandlers(
     },
     "exec.approval.resolve": async ({ params, respond, client, context }) => {
       if (!validateExecApprovalResolveParams(params)) {
-        respond(
-          false,
-          undefined,
-          errorShape(
-            ErrorCodes.INVALID_REQUEST,
-            `invalid exec.approval.resolve params: ${formatValidationErrors(
-              validateExecApprovalResolveParams.errors,
-            )}`,
-          ),
-        );
+        rejectBadParams(respond, validateExecApprovalResolveParams.errors, "exec.approval.resolve");
         return;
       }
       const p = params as { id: string; decision: string };

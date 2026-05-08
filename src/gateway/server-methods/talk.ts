@@ -1,10 +1,6 @@
 import type { GatewayRequestHandlers } from "./types.js";
-import {
-  ErrorCodes,
-  errorShape,
-  formatValidationErrors,
-  validateTalkModeParams,
-} from "../protocol/index.js";
+import { ErrorCodes, errorShape, validateTalkModeParams } from "../protocol/index.js";
+import { rejectBadParams } from "./validation.js";
 
 export const talkHandlers: GatewayRequestHandlers = {
   "talk.mode": ({ params, respond, context, client, isWebchatConnect }) => {
@@ -17,14 +13,7 @@ export const talkHandlers: GatewayRequestHandlers = {
       return;
     }
     if (!validateTalkModeParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid talk.mode params: ${formatValidationErrors(validateTalkModeParams.errors)}`,
-        ),
-      );
+      rejectBadParams(respond, validateTalkModeParams.errors, "talk.mode");
       return;
     }
     const payload = {

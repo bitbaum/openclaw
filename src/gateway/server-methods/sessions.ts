@@ -17,7 +17,6 @@ import { normalizeAgentId, parseAgentSessionKey } from "../../routing/session-ke
 import {
   ErrorCodes,
   errorShape,
-  formatValidationErrors,
   validateSessionsCompactParams,
   validateSessionsDeleteParams,
   validateSessionsListParams,
@@ -41,18 +40,12 @@ import {
 } from "../session-utils.js";
 import { applySessionsPatchToStore } from "../sessions-patch.js";
 import { resolveSessionKeyFromResolveParams } from "../sessions-resolve.js";
+import { rejectBadParams } from "./validation.js";
 
 export const sessionsHandlers: GatewayRequestHandlers = {
   "sessions.list": ({ params, respond }) => {
     if (!validateSessionsListParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid sessions.list params: ${formatValidationErrors(validateSessionsListParams.errors)}`,
-        ),
-      );
+      rejectBadParams(respond, validateSessionsListParams.errors, "sessions.list");
       return;
     }
     const p = params;
@@ -68,16 +61,7 @@ export const sessionsHandlers: GatewayRequestHandlers = {
   },
   "sessions.preview": ({ params, respond }) => {
     if (!validateSessionsPreviewParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid sessions.preview params: ${formatValidationErrors(
-            validateSessionsPreviewParams.errors,
-          )}`,
-        ),
-      );
+      rejectBadParams(respond, validateSessionsPreviewParams.errors, "sessions.preview");
       return;
     }
     const p = params;
@@ -136,14 +120,7 @@ export const sessionsHandlers: GatewayRequestHandlers = {
   },
   "sessions.resolve": ({ params, respond }) => {
     if (!validateSessionsResolveParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid sessions.resolve params: ${formatValidationErrors(validateSessionsResolveParams.errors)}`,
-        ),
-      );
+      rejectBadParams(respond, validateSessionsResolveParams.errors, "sessions.resolve");
       return;
     }
     const p = params;
@@ -158,14 +135,7 @@ export const sessionsHandlers: GatewayRequestHandlers = {
   },
   "sessions.patch": async ({ params, respond, context }) => {
     if (!validateSessionsPatchParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid sessions.patch params: ${formatValidationErrors(validateSessionsPatchParams.errors)}`,
-        ),
-      );
+      rejectBadParams(respond, validateSessionsPatchParams.errors, "sessions.patch");
       return;
     }
     const p = params;
@@ -214,14 +184,7 @@ export const sessionsHandlers: GatewayRequestHandlers = {
   },
   "sessions.reset": async ({ params, respond }) => {
     if (!validateSessionsResetParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid sessions.reset params: ${formatValidationErrors(validateSessionsResetParams.errors)}`,
-        ),
-      );
+      rejectBadParams(respond, validateSessionsResetParams.errors, "sessions.reset");
       return;
     }
     const p = params;
@@ -272,14 +235,7 @@ export const sessionsHandlers: GatewayRequestHandlers = {
   },
   "sessions.delete": async ({ params, respond }) => {
     if (!validateSessionsDeleteParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid sessions.delete params: ${formatValidationErrors(validateSessionsDeleteParams.errors)}`,
-        ),
-      );
+      rejectBadParams(respond, validateSessionsDeleteParams.errors, "sessions.delete");
       return;
     }
     const p = params;
@@ -364,14 +320,7 @@ export const sessionsHandlers: GatewayRequestHandlers = {
   },
   "sessions.compact": async ({ params, respond }) => {
     if (!validateSessionsCompactParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid sessions.compact params: ${formatValidationErrors(validateSessionsCompactParams.errors)}`,
-        ),
-      );
+      rejectBadParams(respond, validateSessionsCompactParams.errors, "sessions.compact");
       return;
     }
     const p = params;

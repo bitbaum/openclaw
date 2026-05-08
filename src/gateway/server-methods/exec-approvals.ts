@@ -11,13 +11,13 @@ import {
 import {
   ErrorCodes,
   errorShape,
-  formatValidationErrors,
   validateExecApprovalsGetParams,
   validateExecApprovalsNodeGetParams,
   validateExecApprovalsNodeSetParams,
   validateExecApprovalsSetParams,
 } from "../protocol/index.js";
 import { respondUnavailableOnThrow, safeParseJson } from "./nodes.helpers.js";
+import { rejectBadParams } from "./validation.js";
 
 function resolveBaseHash(params: unknown): string | null {
   const raw = (params as { baseHash?: unknown })?.baseHash;
@@ -84,14 +84,7 @@ function redactExecApprovals(file: ExecApprovalsFile): ExecApprovalsFile {
 export const execApprovalsHandlers: GatewayRequestHandlers = {
   "exec.approvals.get": ({ params, respond }) => {
     if (!validateExecApprovalsGetParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid exec.approvals.get params: ${formatValidationErrors(validateExecApprovalsGetParams.errors)}`,
-        ),
-      );
+      rejectBadParams(respond, validateExecApprovalsGetParams.errors, "exec.approvals.get");
       return;
     }
     ensureExecApprovals();
@@ -109,14 +102,7 @@ export const execApprovalsHandlers: GatewayRequestHandlers = {
   },
   "exec.approvals.set": ({ params, respond }) => {
     if (!validateExecApprovalsSetParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid exec.approvals.set params: ${formatValidationErrors(validateExecApprovalsSetParams.errors)}`,
-        ),
-      );
+      rejectBadParams(respond, validateExecApprovalsSetParams.errors, "exec.approvals.set");
       return;
     }
     ensureExecApprovals();
@@ -161,13 +147,10 @@ export const execApprovalsHandlers: GatewayRequestHandlers = {
   },
   "exec.approvals.node.get": async ({ params, respond, context }) => {
     if (!validateExecApprovalsNodeGetParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid exec.approvals.node.get params: ${formatValidationErrors(validateExecApprovalsNodeGetParams.errors)}`,
-        ),
+      rejectBadParams(
+        respond,
+        validateExecApprovalsNodeGetParams.errors,
+        "exec.approvals.node.get",
       );
       return;
     }
@@ -199,13 +182,10 @@ export const execApprovalsHandlers: GatewayRequestHandlers = {
   },
   "exec.approvals.node.set": async ({ params, respond, context }) => {
     if (!validateExecApprovalsNodeSetParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid exec.approvals.node.set params: ${formatValidationErrors(validateExecApprovalsNodeSetParams.errors)}`,
-        ),
+      rejectBadParams(
+        respond,
+        validateExecApprovalsNodeSetParams.errors,
+        "exec.approvals.node.set",
       );
       return;
     }

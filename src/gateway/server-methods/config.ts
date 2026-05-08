@@ -28,13 +28,13 @@ import { loadOpenClawPlugins } from "../../plugins/loader.js";
 import {
   ErrorCodes,
   errorShape,
-  formatValidationErrors,
   validateConfigApplyParams,
   validateConfigGetParams,
   validateConfigPatchParams,
   validateConfigSchemaParams,
   validateConfigSetParams,
 } from "../protocol/index.js";
+import { rejectBadParams } from "./validation.js";
 
 function resolveBaseHash(params: unknown): string | null {
   const raw = (params as { baseHash?: unknown })?.baseHash;
@@ -94,14 +94,7 @@ function requireConfigBaseHash(
 export const configHandlers: GatewayRequestHandlers = {
   "config.get": async ({ params, respond }) => {
     if (!validateConfigGetParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid config.get params: ${formatValidationErrors(validateConfigGetParams.errors)}`,
-        ),
-      );
+      rejectBadParams(respond, validateConfigGetParams.errors, "config.get");
       return;
     }
     const snapshot = await readConfigFileSnapshot();
@@ -109,14 +102,7 @@ export const configHandlers: GatewayRequestHandlers = {
   },
   "config.schema": ({ params, respond }) => {
     if (!validateConfigSchemaParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid config.schema params: ${formatValidationErrors(validateConfigSchemaParams.errors)}`,
-        ),
-      );
+      rejectBadParams(respond, validateConfigSchemaParams.errors, "config.schema");
       return;
     }
     const cfg = loadConfig();
@@ -151,14 +137,7 @@ export const configHandlers: GatewayRequestHandlers = {
   },
   "config.set": async ({ params, respond }) => {
     if (!validateConfigSetParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid config.set params: ${formatValidationErrors(validateConfigSetParams.errors)}`,
-        ),
-      );
+      rejectBadParams(respond, validateConfigSetParams.errors, "config.set");
       return;
     }
     const snapshot = await readConfigFileSnapshot();
@@ -217,14 +196,7 @@ export const configHandlers: GatewayRequestHandlers = {
   },
   "config.patch": async ({ params, respond }) => {
     if (!validateConfigPatchParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid config.patch params: ${formatValidationErrors(validateConfigPatchParams.errors)}`,
-        ),
-      );
+      rejectBadParams(respond, validateConfigPatchParams.errors, "config.patch");
       return;
     }
     const snapshot = await readConfigFileSnapshot();
@@ -348,14 +320,7 @@ export const configHandlers: GatewayRequestHandlers = {
   },
   "config.apply": async ({ params, respond }) => {
     if (!validateConfigApplyParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid config.apply params: ${formatValidationErrors(validateConfigApplyParams.errors)}`,
-        ),
-      );
+      rejectBadParams(respond, validateConfigApplyParams.errors, "config.apply");
       return;
     }
     const snapshot = await readConfigFileSnapshot();

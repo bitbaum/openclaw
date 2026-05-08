@@ -1,22 +1,11 @@
 import type { GatewayRequestHandlers } from "./types.js";
-import {
-  ErrorCodes,
-  errorShape,
-  formatValidationErrors,
-  validateModelsListParams,
-} from "../protocol/index.js";
+import { ErrorCodes, errorShape, validateModelsListParams } from "../protocol/index.js";
+import { rejectBadParams } from "./validation.js";
 
 export const modelsHandlers: GatewayRequestHandlers = {
   "models.list": async ({ params, respond, context }) => {
     if (!validateModelsListParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid models.list params: ${formatValidationErrors(validateModelsListParams.errors)}`,
-        ),
-      );
+      rejectBadParams(respond, validateModelsListParams.errors, "models.list");
       return;
     }
     try {

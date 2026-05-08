@@ -17,11 +17,11 @@ import { defaultRuntime } from "../../runtime.js";
 import {
   ErrorCodes,
   errorShape,
-  formatValidationErrors,
   validateChannelsLogoutParams,
   validateChannelsStatusParams,
 } from "../protocol/index.js";
 import { formatForLog } from "../ws-log.js";
+import { rejectBadParams } from "./validation.js";
 
 type ChannelLogoutPayload = {
   channel: ChannelId;
@@ -69,14 +69,7 @@ export async function logoutChannelAccount(params: {
 export const channelsHandlers: GatewayRequestHandlers = {
   "channels.status": async ({ params, respond, context }) => {
     if (!validateChannelsStatusParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid channels.status params: ${formatValidationErrors(validateChannelsStatusParams.errors)}`,
-        ),
-      );
+      rejectBadParams(respond, validateChannelsStatusParams.errors, "channels.status");
       return;
     }
     const probe = (params as { probe?: boolean }).probe === true;
@@ -236,14 +229,7 @@ export const channelsHandlers: GatewayRequestHandlers = {
   },
   "channels.logout": async ({ params, respond, context }) => {
     if (!validateChannelsLogoutParams(params)) {
-      respond(
-        false,
-        undefined,
-        errorShape(
-          ErrorCodes.INVALID_REQUEST,
-          `invalid channels.logout params: ${formatValidationErrors(validateChannelsLogoutParams.errors)}`,
-        ),
-      );
+      rejectBadParams(respond, validateChannelsLogoutParams.errors, "channels.logout");
       return;
     }
     const rawChannel = (params as { channel?: unknown }).channel;
