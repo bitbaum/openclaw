@@ -1,4 +1,5 @@
 import { normalizeIMessageHandle } from "../../../imessage/targets.js";
+import { PHONE_NUMBER_RE } from "./patterns.js";
 
 // Service prefixes that indicate explicit delivery method; must be preserved during normalization
 const SERVICE_PREFIXES = ["imessage:", "sms:", "auto:"] as const;
@@ -45,5 +46,5 @@ export function looksLikeIMessageTargetId(raw: string): boolean {
   if (trimmed.includes("@")) {
     return true;
   }
-  return /^\+?\d{3,}$/.test(trimmed);
+  return PHONE_NUMBER_RE.test(trimmed);
 }

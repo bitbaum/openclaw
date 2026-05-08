@@ -1,3 +1,5 @@
+import { PHONE_NUMBER_RE } from "./patterns.js";
+
 export function normalizeSignalMessagingTarget(raw: string): string | undefined {
   const trimmed = raw.trim();
   if (!trimmed) {
@@ -56,5 +58,5 @@ export function looksLikeSignalTargetId(raw: string): boolean {
   if (UUID_PATTERN.test(trimmed) || UUID_COMPACT_PATTERN.test(trimmed)) {
     return true;
   }
-  return /^\+?\d{3,}$/.test(trimmed);
+  return PHONE_NUMBER_RE.test(trimmed);
 }

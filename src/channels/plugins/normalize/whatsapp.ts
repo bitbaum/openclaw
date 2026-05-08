@@ -1,4 +1,5 @@
 import { normalizeWhatsAppTarget } from "../../../whatsapp/normalize.js";
+import { PHONE_NUMBER_RE } from "./patterns.js";
 
 export function normalizeWhatsAppMessagingTarget(raw: string): string | undefined {
   const trimmed = raw.trim();
@@ -19,5 +20,5 @@ export function looksLikeWhatsAppTargetId(raw: string): boolean {
   if (trimmed.includes("@")) {
     return true;
   }
-  return /^\+?\d{3,}$/.test(trimmed);
+  return PHONE_NUMBER_RE.test(trimmed);
 }
