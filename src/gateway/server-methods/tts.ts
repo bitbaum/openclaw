@@ -16,7 +16,7 @@ import {
   textToSpeech,
 } from "../../tts/tts.js";
 import { ErrorCodes, errorShape } from "../protocol/index.js";
-import { formatForLog } from "../ws-log.js";
+import { rejectUnavailable } from "./validation.js";
 
 export const ttsHandlers: GatewayRequestHandlers = {
   "tts.status": async ({ respond }) => {
@@ -41,7 +41,7 @@ export const ttsHandlers: GatewayRequestHandlers = {
         edgeEnabled: isTtsProviderConfigured(config, "edge"),
       });
     } catch (err) {
-      respond(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, formatForLog(err)));
+      rejectUnavailable(respond, err);
     }
   },
   "tts.enable": async ({ respond }) => {
@@ -52,7 +52,7 @@ export const ttsHandlers: GatewayRequestHandlers = {
       setTtsEnabled(prefsPath, true);
       respond(true, { enabled: true });
     } catch (err) {
-      respond(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, formatForLog(err)));
+      rejectUnavailable(respond, err);
     }
   },
   "tts.disable": async ({ respond }) => {
@@ -63,7 +63,7 @@ export const ttsHandlers: GatewayRequestHandlers = {
       setTtsEnabled(prefsPath, false);
       respond(true, { enabled: false });
     } catch (err) {
-      respond(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, formatForLog(err)));
+      rejectUnavailable(respond, err);
     }
   },
   "tts.convert": async ({ params, respond }) => {
@@ -95,7 +95,7 @@ export const ttsHandlers: GatewayRequestHandlers = {
         errorShape(ErrorCodes.UNAVAILABLE, result.error ?? "TTS conversion failed"),
       );
     } catch (err) {
-      respond(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, formatForLog(err)));
+      rejectUnavailable(respond, err);
     }
   },
   "tts.setProvider": async ({ params, respond }) => {
@@ -118,7 +118,7 @@ export const ttsHandlers: GatewayRequestHandlers = {
       setTtsProvider(prefsPath, provider);
       respond(true, { provider });
     } catch (err) {
-      respond(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, formatForLog(err)));
+      rejectUnavailable(respond, err);
     }
   },
   "tts.providers": async ({ respond }) => {
@@ -151,7 +151,7 @@ export const ttsHandlers: GatewayRequestHandlers = {
         active: getTtsProvider(config, prefsPath),
       });
     } catch (err) {
-      respond(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, formatForLog(err)));
+      rejectUnavailable(respond, err);
     }
   },
 };

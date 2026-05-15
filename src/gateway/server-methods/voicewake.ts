@@ -2,7 +2,7 @@ import type { GatewayRequestHandlers } from "./types.js";
 import { loadVoiceWakeConfig, setVoiceWakeTriggers } from "../../infra/voicewake.js";
 import { ErrorCodes, errorShape } from "../protocol/index.js";
 import { normalizeVoiceWakeTriggers } from "../server-utils.js";
-import { formatForLog } from "../ws-log.js";
+import { rejectUnavailable } from "./validation.js";
 
 export const voicewakeHandlers: GatewayRequestHandlers = {
   "voicewake.get": async ({ respond }) => {
@@ -10,7 +10,7 @@ export const voicewakeHandlers: GatewayRequestHandlers = {
       const cfg = await loadVoiceWakeConfig();
       respond(true, { triggers: cfg.triggers });
     } catch (err) {
-      respond(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, formatForLog(err)));
+      rejectUnavailable(respond, err);
     }
   },
   "voicewake.set": async ({ params, respond, context }) => {
@@ -28,7 +28,7 @@ export const voicewakeHandlers: GatewayRequestHandlers = {
       context.broadcastVoiceWakeChanged(cfg.triggers);
       respond(true, { triggers: cfg.triggers });
     } catch (err) {
-      respond(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, formatForLog(err)));
+      rejectUnavailable(respond, err);
     }
   },
 };

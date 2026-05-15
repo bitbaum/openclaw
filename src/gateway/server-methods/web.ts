@@ -6,8 +6,7 @@ import {
   validateWebLoginStartParams,
   validateWebLoginWaitParams,
 } from "../protocol/index.js";
-import { formatForLog } from "../ws-log.js";
-import { rejectBadParams } from "./validation.js";
+import { rejectBadParams, rejectUnavailable } from "./validation.js";
 
 const WEB_LOGIN_METHODS = new Set(["web.login.start", "web.login.wait"]);
 
@@ -59,7 +58,7 @@ export const webHandlers: GatewayRequestHandlers = {
       });
       respond(true, result, undefined);
     } catch (err) {
-      respond(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, formatForLog(err)));
+      rejectUnavailable(respond, err);
     }
   },
   "web.login.wait": async ({ params, respond, context }) => {
@@ -104,7 +103,7 @@ export const webHandlers: GatewayRequestHandlers = {
       }
       respond(true, result, undefined);
     } catch (err) {
-      respond(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, formatForLog(err)));
+      rejectUnavailable(respond, err);
     }
   },
 };

@@ -20,8 +20,7 @@ import {
   validateChannelsLogoutParams,
   validateChannelsStatusParams,
 } from "../protocol/index.js";
-import { formatForLog } from "../ws-log.js";
-import { rejectBadParams } from "./validation.js";
+import { rejectBadParams, rejectUnavailable } from "./validation.js";
 
 type ChannelLogoutPayload = {
   channel: ChannelId;
@@ -272,7 +271,7 @@ export const channelsHandlers: GatewayRequestHandlers = {
       });
       respond(true, payload, undefined);
     } catch (err) {
-      respond(false, undefined, errorShape(ErrorCodes.UNAVAILABLE, formatForLog(err)));
+      rejectUnavailable(respond, err);
     }
   },
 };
