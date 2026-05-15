@@ -221,6 +221,7 @@ export function renderApp(state: AppViewState) {
                 cronStatus: state.cronStatus,
                 cronJobs: state.cronJobs,
                 agentsList: state.agentsList,
+                costSummary: state.dashboardCostSummary,
                 loading: state.dashboardLoading,
                 lastRefreshedAt: state.dashboardLastRefreshedAt,
                 onNavigate: (tab) => state.setTab(tab),

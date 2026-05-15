@@ -325,6 +325,7 @@ export class OpenClawApp extends LitElement {
   @state() logsAtBottom = true;
   @state() dashboardLoading = false;
   @state() dashboardLastRefreshedAt: number | null = null;
+  @state() dashboardCostSummary: import("./types.js").CostUsageSummary | null = null;
 
   client: GatewayBrowserClient | null = null;
   private chatScrollFrame: number | null = null;

@@ -221,6 +221,7 @@ export type AppViewState = {
   logsAtBottom: boolean;
   dashboardLoading: boolean;
   dashboardLastRefreshedAt: number | null;
+  dashboardCostSummary: CostUsageSummary | null;
   client: GatewayBrowserClient | null;
   refreshSessionsAfterChat: Set<string>;
   connect: () => void;

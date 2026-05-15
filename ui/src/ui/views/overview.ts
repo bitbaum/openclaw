@@ -1,11 +1,31 @@
 import { html, nothing } from "lit";
 import type { GatewayHelloOk } from "../gateway.ts";
 import type { Tab } from "../navigation.ts";
-import type { AgentsListResult, ChannelsStatusSnapshot, CronJob, CronStatus } from "../types.ts";
+import type {
+  AgentsListResult,
+  ChannelsStatusSnapshot,
+  CostUsageSummary,
+  CronJob,
+  CronStatus,
+} from "../types.ts";
 import { DEFAULT_ASSISTANT_NAME } from "../assistant-identity.ts";
 import { formatRelativeTimestamp, formatDurationHuman } from "../format.ts";
 import { formatNextRun } from "../presenter.ts";
 import { resolveChannelStatus } from "./channels.shared.ts";
+
+function formatTokens(n: number): string {
+  if (n >= 1_000_000) {
+    return `${(n / 1_000_000).toFixed(1)}M`;
+  }
+  if (n >= 1_000) {
+    return `${(n / 1_000).toFixed(1)}K`;
+  }
+  return String(n);
+}
+
+function formatCost(n: number): string {
+  return `$${n.toFixed(2)}`;
+}
 
 export type DashboardProps = {
   connected: boolean;
@@ -19,6 +39,7 @@ export type DashboardProps = {
   cronStatus: CronStatus | null;
   cronJobs: CronJob[];
   agentsList: AgentsListResult | null;
+  costSummary: CostUsageSummary | null;
   loading: boolean;
   lastRefreshedAt: number | null;
   onNavigate: (tab: Tab) => void;
@@ -275,10 +296,33 @@ export function renderDashboard(props: DashboardProps) {
         title="View usage"
       >
         <div class="card-title">Usage</div>
-        <div class="card-sub">Token usage and cost tracking</div>
-        <div class="muted" style="margin-top: 12px;">
-          Click to view detailed usage analytics, session breakdowns, and cost summaries.
-        </div>
+        <div class="card-sub">Last 30 days</div>
+        ${
+          props.costSummary
+            ? html`
+                <div class="stat-grid" style="margin-top: 12px;">
+                  <div class="stat">
+                    <div class="stat-label">Tokens</div>
+                    <div class="stat-value" style="font-size: 16px;">${formatTokens(props.costSummary.totals.totalTokens)}</div>
+                  </div>
+                  <div class="stat">
+                    <div class="stat-label">Cost</div>
+                    <div class="stat-value" style="font-size: 16px;">${formatCost(props.costSummary.totals.totalCost)}</div>
+                  </div>
+                </div>
+                <div class="muted" style="margin-top: 8px; font-size: 12px;">
+                  ${
+                    props.costSummary.totals.missingCostEntries > 0
+                      ? html`<span>${props.costSummary.totals.missingCostEntries} session${props.costSummary.totals.missingCostEntries !== 1 ? "s" : ""} missing pricing · </span>`
+                      : nothing
+                  }
+                  Click for details
+                </div>
+              `
+            : html`
+                <div class="muted" style="margin-top: 12px">Click to view usage analytics</div>
+              `
+        }
       </div>
     </section>
   `;

@@ -1,5 +1,5 @@
 import type { OpenClawApp } from "./app.ts";
-import type { AgentsListResult } from "./types.ts";
+import type { AgentsListResult, CostUsageSummary } from "./types.ts";
 import { refreshChat } from "./app-chat.ts";
 import {
   startLogsPolling,
@@ -58,6 +58,7 @@ type SettingsHost = {
   pendingGatewayUrl?: string | null;
   dashboardLoading?: boolean;
   dashboardLastRefreshedAt?: number | null;
+  dashboardCostSummary?: CostUsageSummary | null;
 };
 
 export function applySettings(host: SettingsHost, next: UiSettings) {
@@ -410,16 +411,39 @@ export function syncUrlWithSessionKey(host: SettingsHost, sessionKey: string, re
   }
 }
 
+function isoDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export async function loadOverview(host: SettingsHost) {
   host.dashboardLoading = true;
   try {
+    const app = host as unknown as OpenClawApp;
+    const loadCostSummary = async () => {
+      if (!app.client || !app.connected) {
+        return;
+      }
+      const endDate = isoDate(new Date());
+      const start = new Date();
+      start.setDate(start.getDate() - 30);
+      const startDate = isoDate(start);
+      try {
+        const res = await app.client.request("usage.cost", { startDate, endDate });
+        if (res) {
+          host.dashboardCostSummary = res as CostUsageSummary;
+        }
+      } catch {
+        // silent — cost data is optional for the dashboard
+      }
+    };
     await Promise.all([
-      loadChannels(host as unknown as OpenClawApp, false),
-      loadPresence(host as unknown as OpenClawApp),
-      loadSessions(host as unknown as OpenClawApp),
-      loadCronStatus(host as unknown as OpenClawApp),
-      loadCronJobs(host as unknown as OpenClawApp),
-      loadAgents(host as unknown as OpenClawApp),
+      loadChannels(app, false),
+      loadPresence(app),
+      loadSessions(app),
+      loadCronStatus(app),
+      loadCronJobs(app),
+      loadAgents(app),
+      loadCostSummary(),
     ]);
     host.dashboardLastRefreshedAt = Date.now();
   } finally {
