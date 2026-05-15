@@ -17,7 +17,7 @@ import {
   validateExecApprovalsSetParams,
 } from "../protocol/index.js";
 import { respondUnavailableOnThrow, safeParseJson } from "./nodes.helpers.js";
-import { rejectBadParams } from "./validation.js";
+import { extractRequiredString, rejectBadParams } from "./validation.js";
 
 function resolveBaseHash(params: unknown): string | null {
   const raw = (params as { baseHash?: unknown })?.baseHash;
@@ -155,9 +155,8 @@ export const execApprovalsHandlers: GatewayRequestHandlers = {
       return;
     }
     const { nodeId } = params as { nodeId: string };
-    const id = nodeId.trim();
+    const id = extractRequiredString(respond, nodeId, "nodeId");
     if (!id) {
-      respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "nodeId required"));
       return;
     }
     await respondUnavailableOnThrow(respond, async () => {
@@ -194,9 +193,8 @@ export const execApprovalsHandlers: GatewayRequestHandlers = {
       file: ExecApprovalsFile;
       baseHash?: string;
     };
-    const id = nodeId.trim();
+    const id = extractRequiredString(respond, nodeId, "nodeId");
     if (!id) {
-      respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "nodeId required"));
       return;
     }
     await respondUnavailableOnThrow(respond, async () => {

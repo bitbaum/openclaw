@@ -26,7 +26,7 @@ import {
   validateNodeRenameParams,
 } from "../protocol/index.js";
 import { respondUnavailableOnThrow, safeParseJson, uniqueSortedStrings } from "./nodes.helpers.js";
-import { rejectBadParams } from "./validation.js";
+import { extractRequiredString, rejectBadParams } from "./validation.js";
 
 function isNodeEntry(entry: { role?: string; roles?: string[] }) {
   if (entry.role === "node") {
@@ -185,9 +185,8 @@ export const nodeHandlers: GatewayRequestHandlers = {
       displayName: string;
     };
     await respondUnavailableOnThrow(respond, async () => {
-      const trimmed = displayName.trim();
+      const trimmed = extractRequiredString(respond, displayName, "displayName");
       if (!trimmed) {
-        respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "displayName required"));
         return;
       }
       const updated = await renamePairedNode(nodeId, trimmed);
@@ -281,9 +280,8 @@ export const nodeHandlers: GatewayRequestHandlers = {
       return;
     }
     const { nodeId } = params as { nodeId: string };
-    const id = String(nodeId ?? "").trim();
+    const id = extractRequiredString(respond, nodeId, "nodeId");
     if (!id) {
-      respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "nodeId required"));
       return;
     }
     await respondUnavailableOnThrow(respond, async () => {

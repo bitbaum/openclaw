@@ -5,6 +5,7 @@ import { setHeartbeatsEnabled } from "../../infra/heartbeat-runner.js";
 import { enqueueSystemEvent, isSystemEventContextChanged } from "../../infra/system-events.js";
 import { listSystemPresence, updateSystemPresence } from "../../infra/system-presence.js";
 import { ErrorCodes, errorShape } from "../protocol/index.js";
+import { extractRequiredString } from "./validation.js";
 
 export const systemHandlers: GatewayRequestHandlers = {
   "last-heartbeat": ({ respond }) => {
@@ -31,9 +32,8 @@ export const systemHandlers: GatewayRequestHandlers = {
     respond(true, presence, undefined);
   },
   "system-event": ({ params, respond, context }) => {
-    const text = typeof params.text === "string" ? params.text.trim() : "";
+    const text = extractRequiredString(respond, params.text, "text");
     if (!text) {
-      respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "text required"));
       return;
     }
     const sessionKey = resolveMainSessionKeyFromConfig();
