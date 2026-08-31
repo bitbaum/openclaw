@@ -56,7 +56,7 @@ jobs:
     steps:
       - name: Require maintainer-level repository access
         id: permission
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const allowed = new Set(["admin", "maintain", "write"]);
@@ -91,7 +91,7 @@ jobs:
     steps:
       - name: Resolve refs and target PR
         id: resolve
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const defaultBaseline = "synthetic-reverted-thread-filepath-fix";
@@ -177,7 +177,7 @@ jobs:
       candidate_revision: ${{ steps.validate.outputs.candidate_revision }}
     steps:
       - name: Checkout harness ref
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -235,7 +235,7 @@ jobs:
       output_dir: ${{ steps.run_mantis.outputs.output_dir }}
     steps:
       - name: Checkout harness ref
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -603,7 +603,7 @@ jobs:
       issues: write
     steps:
       - name: Remove workflow eyes reaction
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const { owner, repo } = context.repo;

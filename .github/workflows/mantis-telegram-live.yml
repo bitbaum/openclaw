@@ -68,7 +68,7 @@ jobs:
     steps:
       - name: Require maintainer-level repository access
         id: permission
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const allowed = new Set(["admin", "maintain", "write"]);
@@ -105,7 +105,7 @@ jobs:
     steps:
       - name: Resolve refs and target PR
         id: resolve
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const eventName = context.eventName;
@@ -209,7 +209,7 @@ jobs:
       candidate_revision: ${{ steps.validate.outputs.candidate_revision }}
     steps:
       - name: Checkout harness ref
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -312,7 +312,7 @@ jobs:
           done
 
       - name: Checkout harness ref
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -327,7 +327,7 @@ jobs:
         run: pnpm build
 
       - name: Cache Mantis candidate pnpm store
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.local/share/pnpm/store
@@ -573,7 +573,7 @@ jobs:
       issues: write
     steps:
       - name: Remove workflow eyes reaction
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const { owner, repo } = context.repo;
