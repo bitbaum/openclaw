@@ -92,7 +92,7 @@ runs:
     - name: Restore pnpm store cache
       id: pnpm-store-cache
       if: ${{ inputs.use-actions-cache == 'true' && runner.os != 'Windows' }}
-      uses: actions/cache/restore@v5
+      uses: actions/cache/restore@v6
       with:
         path: ${{ steps.pnpm-store.outputs.path }}
         key: pnpm-store-${{ runner.os }}-${{ runner.arch }}-${{ inputs.node-version }}-${{ hashFiles(inputs.package-manager-file) }}-${{ hashFiles(inputs.lockfile-path) }}
