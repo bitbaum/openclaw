@@ -108,6 +108,7 @@ export async function main(argv = process.argv.slice(2)) {
         { name: "duplicate scan target coverage", args: ["dup:check:coverage"] },
         { name: "npm shrinkwrap guard", args: ["deps:shrinkwrap:check"] },
         { name: "package patch guard", args: ["deps:patches:check"] },
+        { name: "format", args: ["format:check"] },
       ],
     },
     {
