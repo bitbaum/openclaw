@@ -270,9 +270,11 @@ function renderNativeTalkSelect(params: {
   return html`
     <label class="agent-chat__talk-field" data-talk-select=${params.label.toLowerCase()}>
       <span>${params.label}</span>
-      ${selectedLabel
-        ? html`<span class="agent-chat__talk-select-label">${selectedLabel}</span>`
-        : nothing}
+      ${
+        selectedLabel
+          ? html`<span class="agent-chat__talk-select-label">${selectedLabel}</span>`
+          : nothing
+      }
       <select
         .value=${params.value}
         @change=${(event: Event) =>
@@ -432,12 +434,14 @@ function renderRealtimeTalkConversation(props: ChatProps) {
             >
               <span class="agent-chat__voice-turn-speaker">${label}</span>
               <span class="agent-chat__voice-turn-text">${entry.text}</span>
-              ${entry.isStreaming
-                ? html`<span
-                    class="agent-chat__voice-turn-stream"
-                    aria-label=${t("chat.composer.stillListening")}
-                  ></span>`
-                : nothing}
+              ${
+                entry.isStreaming
+                  ? html`<span
+                      class="agent-chat__voice-turn-stream"
+                      aria-label=${t("chat.composer.stillListening")}
+                    ></span>`
+                  : nothing
+              }
             </div>
           `;
         },
@@ -946,16 +950,18 @@ function renderAttachmentPreview(props: ChatProps): TemplateResult | typeof noth
               .filter(Boolean)
               .join(" ")}
           >
-            ${isImageAttachment(att) && getChatAttachmentPreviewUrl(att)
-              ? html`<img src=${getChatAttachmentPreviewUrl(att)!} alt="Attachment preview" />`
-              : html`
-                  <div class="chat-attachment-file" title=${att.fileName ?? "Attached file"}>
-                    <span class="chat-attachment-file__icon">${icons.paperclip}</span>
-                    <span class="chat-attachment-file__name"
-                      >${att.fileName ?? "Attached file"}</span
-                    >
-                  </div>
-                `}
+            ${
+              isImageAttachment(att) && getChatAttachmentPreviewUrl(att)
+                ? html`<img src=${getChatAttachmentPreviewUrl(att)!} alt="Attachment preview" />`
+                : html`
+                    <div class="chat-attachment-file" title=${att.fileName ?? "Attached file"}>
+                      <span class="chat-attachment-file__icon">${icons.paperclip}</span>
+                      <span class="chat-attachment-file__name"
+                        >${att.fileName ?? "Attached file"}</span
+                      >
+                    </div>
+                  `
+            }
             <button
               class="chat-attachment-remove"
               type="button"
@@ -1031,49 +1037,57 @@ function renderWorkspaceFileRail(
           ${icons.refresh}
         </button>
       </div>
-      ${workspaceFiles.list?.workspace
-        ? html`<div class="chat-workspace-rail__path" title=${workspaceFiles.list.workspace}>
-            ${workspaceFiles.list.workspace}
-          </div>`
-        : nothing}
-      ${workspaceFiles.error
-        ? html`<div class="chat-workspace-rail__state chat-workspace-rail__state--error">
-            ${workspaceFiles.error}
-          </div>`
-        : workspaceFiles.loading && files.length === 0
-          ? html`<div class="chat-workspace-rail__state">Loading files...</div>`
-          : files.length === 0
-            ? html`<div class="chat-workspace-rail__state">No workspace files</div>`
-            : html`
-                <div class="chat-workspace-rail__list" role="list">
-                  ${files.map((file) => {
-                    const size = formatWorkspaceFileSize(file);
-                    const isActive = file.name === workspaceFiles.activeName;
-                    return html`
-                      <button
-                        class="chat-workspace-rail__file ${isActive
-                          ? "chat-workspace-rail__file--active"
-                          : ""}"
-                        type="button"
-                        role="listitem"
-                        title=${file.path || file.name}
-                        @click=${() => workspaceFiles.onOpenFile(file.name)}
-                      >
-                        <span class="chat-workspace-rail__file-icon">${icons.fileText}</span>
-                        <span class="chat-workspace-rail__file-main">
-                          <span class="chat-workspace-rail__file-name">${file.name}</span>
-                          ${size
-                            ? html`<span class="chat-workspace-rail__file-meta">${size}</span>`
-                            : nothing}
-                        </span>
-                        ${file.missing
-                          ? html`<span class="chat-workspace-rail__file-badge">Missing</span>`
-                          : nothing}
-                      </button>
-                    `;
-                  })}
-                </div>
-              `}
+      ${
+        workspaceFiles.list?.workspace
+          ? html`<div class="chat-workspace-rail__path" title=${workspaceFiles.list.workspace}>
+              ${workspaceFiles.list.workspace}
+            </div>`
+          : nothing
+      }
+      ${
+        workspaceFiles.error
+          ? html`<div class="chat-workspace-rail__state chat-workspace-rail__state--error">
+              ${workspaceFiles.error}
+            </div>`
+          : workspaceFiles.loading && files.length === 0
+            ? html`<div class="chat-workspace-rail__state">Loading files...</div>`
+            : files.length === 0
+              ? html`<div class="chat-workspace-rail__state">No workspace files</div>`
+              : html`
+                  <div class="chat-workspace-rail__list" role="list">
+                    ${files.map((file) => {
+                      const size = formatWorkspaceFileSize(file);
+                      const isActive = file.name === workspaceFiles.activeName;
+                      return html`
+                        <button
+                          class="chat-workspace-rail__file ${
+                            isActive ? "chat-workspace-rail__file--active" : ""
+                          }"
+                          type="button"
+                          role="listitem"
+                          title=${file.path || file.name}
+                          @click=${() => workspaceFiles.onOpenFile(file.name)}
+                        >
+                          <span class="chat-workspace-rail__file-icon">${icons.fileText}</span>
+                          <span class="chat-workspace-rail__file-main">
+                            <span class="chat-workspace-rail__file-name">${file.name}</span>
+                            ${
+                              size
+                                ? html`<span class="chat-workspace-rail__file-meta">${size}</span>`
+                                : nothing
+                            }
+                          </span>
+                          ${
+                            file.missing
+                              ? html`<span class="chat-workspace-rail__file-badge">Missing</span>`
+                              : nothing
+                          }
+                        </button>
+                      `;
+                    })}
+                  </div>
+                `
+      }
     </aside>
   `;
 }
@@ -1361,34 +1375,36 @@ function renderPinnedSection(
           >${icons.chevronDown}</span
         >
       </button>
-      ${vs.pinnedExpanded
-        ? html`
-            <div class="agent-chat__pinned-list">
-              ${entries.map(
-                ({ index, text, role }) => html`
-                  <div class="agent-chat__pinned-item">
-                    <span class="agent-chat__pinned-role"
-                      >${role === "user" ? userRoleLabel : "Assistant"}</span
-                    >
-                    <span class="agent-chat__pinned-text"
-                      >${text.slice(0, 100)}${text.length > 100 ? "..." : ""}</span
-                    >
-                    <button
-                      class="btn btn--ghost"
-                      @click=${() => {
-                        pinned.unpin(index);
-                        requestUpdate();
-                      }}
-                      title="Unpin"
-                    >
-                      ${icons.x}
-                    </button>
-                  </div>
-                `,
-              )}
-            </div>
-          `
-        : nothing}
+      ${
+        vs.pinnedExpanded
+          ? html`
+              <div class="agent-chat__pinned-list">
+                ${entries.map(
+                  ({ index, text, role }) => html`
+                    <div class="agent-chat__pinned-item">
+                      <span class="agent-chat__pinned-role"
+                        >${role === "user" ? userRoleLabel : "Assistant"}</span
+                      >
+                      <span class="agent-chat__pinned-text"
+                        >${text.slice(0, 100)}${text.length > 100 ? "..." : ""}</span
+                      >
+                      <button
+                        class="btn btn--ghost"
+                        @click=${() => {
+                          pinned.unpin(index);
+                          requestUpdate();
+                        }}
+                        title="Unpin"
+                      >
+                        ${icons.x}
+                      </button>
+                    </div>
+                  `,
+                )}
+              </div>
+            `
+          : nothing
+      }
     </div>
   `;
 }
@@ -1428,9 +1444,11 @@ function renderSlashMenu(
                   requestUpdate();
                 }}
               >
-                ${vs.slashMenuCommand?.icon
-                  ? html`<span class="slash-menu-icon">${icons[vs.slashMenuCommand.icon]}</span>`
-                  : nothing}
+                ${
+                  vs.slashMenuCommand?.icon
+                    ? html`<span class="slash-menu-icon">${icons[vs.slashMenuCommand.icon]}</span>`
+                    : nothing
+                }
                 <span class="slash-menu-name">${arg}</span>
                 <span class="slash-menu-desc">/${vs.slashMenuCommand?.name} ${arg}</span>
               </div>
@@ -1473,9 +1491,9 @@ function renderSlashMenu(
           ({ cmd, globalIdx }) => html`
             <div
               id=${getSlashCommandOptionId(cmd)}
-              class="slash-menu-item ${globalIdx === vs.slashMenuIndex
-                ? "slash-menu-item--active"
-                : ""}"
+              class="slash-menu-item ${
+                globalIdx === vs.slashMenuIndex ? "slash-menu-item--active" : ""
+              }"
               role="option"
               aria-selected=${globalIdx === vs.slashMenuIndex}
               @click=${() => selectSlashCommand(cmd, props, requestUpdate)}
@@ -1488,11 +1506,13 @@ function renderSlashMenu(
               <span class="slash-menu-name">/${cmd.name}</span>
               ${cmd.args ? html`<span class="slash-menu-args">${cmd.args}</span>` : nothing}
               <span class="slash-menu-desc">${cmd.description}</span>
-              ${cmd.argOptions?.length
-                ? html`<span class="slash-menu-badge">${cmd.argOptions.length} options</span>`
-                : cmd.executeLocal && !cmd.args
-                  ? html` <span class="slash-menu-badge">instant</span> `
-                  : nothing}
+              ${
+                cmd.argOptions?.length
+                  ? html`<span class="slash-menu-badge">${cmd.argOptions.length} options</span>`
+                  : cmd.executeLocal && !cmd.args
+                    ? html` <span class="slash-menu-badge">instant</span> `
+                    : nothing
+              }
             </div>
           `,
         )}
@@ -1505,19 +1525,21 @@ function renderSlashMenu(
   return html`
     <div id=${SLASH_MENU_LISTBOX_ID} class="slash-menu" role="listbox" aria-label="Slash commands">
       ${sections}
-      ${hiddenCount > 0
-        ? html`<button
-            class="slash-menu-show-more"
-            @click=${(e: Event) => {
-              e.preventDefault();
-              e.stopPropagation();
-              vs.slashMenuExpanded = true;
-              updateSlashMenu(draft, requestUpdate);
-            }}
-          >
-            Show ${hiddenCount} more command${hiddenCount !== 1 ? "s" : ""}
-          </button>`
-        : nothing}
+      ${
+        hiddenCount > 0
+          ? html`<button
+              class="slash-menu-show-more"
+              @click=${(e: Event) => {
+                e.preventDefault();
+                e.stopPropagation();
+                vs.slashMenuExpanded = true;
+                updateSlashMenu(draft, requestUpdate);
+              }}
+            >
+              Show ${hiddenCount} more command${hiddenCount !== 1 ? "s" : ""}
+            </button>`
+          : nothing
+      }
       <div class="slash-menu-footer">
         <kbd>↑↓</kbd> navigate <kbd>Tab</kbd> fill <kbd>Enter</kbd> select <kbd>Esc</kbd> close
       </div>
@@ -1622,49 +1644,53 @@ export function renderChat(props: ChatProps) {
       @click=${handleCodeBlockCopy}
     >
       <div class="chat-thread-inner">
-        ${showLoadingSkeleton
-          ? html`
-              <div class="chat-loading-skeleton" aria-label="Loading chat">
-                <div class="chat-line assistant">
-                  <div class="chat-msg">
-                    <div class="chat-bubble">
-                      <div
-                        class="skeleton skeleton-line skeleton-line--long"
-                        style="margin-bottom: 8px"
-                      ></div>
-                      <div
-                        class="skeleton skeleton-line skeleton-line--medium"
-                        style="margin-bottom: 8px"
-                      ></div>
-                      <div class="skeleton skeleton-line skeleton-line--short"></div>
+        ${
+          showLoadingSkeleton
+            ? html`
+                <div class="chat-loading-skeleton" aria-label="Loading chat">
+                  <div class="chat-line assistant">
+                    <div class="chat-msg">
+                      <div class="chat-bubble">
+                        <div
+                          class="skeleton skeleton-line skeleton-line--long"
+                          style="margin-bottom: 8px"
+                        ></div>
+                        <div
+                          class="skeleton skeleton-line skeleton-line--medium"
+                          style="margin-bottom: 8px"
+                        ></div>
+                        <div class="skeleton skeleton-line skeleton-line--short"></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="chat-line user" style="margin-top: 12px">
+                    <div class="chat-msg">
+                      <div class="chat-bubble">
+                        <div class="skeleton skeleton-line skeleton-line--medium"></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="chat-line assistant" style="margin-top: 12px">
+                    <div class="chat-msg">
+                      <div class="chat-bubble">
+                        <div
+                          class="skeleton skeleton-line skeleton-line--long"
+                          style="margin-bottom: 8px"
+                        ></div>
+                        <div class="skeleton skeleton-line skeleton-line--short"></div>
+                      </div>
                     </div>
                   </div>
                 </div>
-                <div class="chat-line user" style="margin-top: 12px">
-                  <div class="chat-msg">
-                    <div class="chat-bubble">
-                      <div class="skeleton skeleton-line skeleton-line--medium"></div>
-                    </div>
-                  </div>
-                </div>
-                <div class="chat-line assistant" style="margin-top: 12px">
-                  <div class="chat-msg">
-                    <div class="chat-bubble">
-                      <div
-                        class="skeleton skeleton-line skeleton-line--long"
-                        style="margin-bottom: 8px"
-                      ></div>
-                      <div class="skeleton skeleton-line skeleton-line--short"></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            `
-          : nothing}
+              `
+            : nothing
+        }
         ${isEmpty && !vs.searchOpen ? renderWelcomeState(props) : nothing}
-        ${isEmpty && vs.searchOpen
-          ? html` <div class="agent-chat__empty">No matching messages</div> `
-          : nothing}
+        ${
+          isEmpty && vs.searchOpen
+            ? html` <div class="agent-chat__empty">No matching messages</div> `
+            : nothing
+        }
         ${guard(
           [
             chatItems,
@@ -1701,29 +1727,35 @@ export function renderChat(props: ChatProps) {
                         <span class="chat-divider__label">${item.label}</span>
                         <span class="chat-divider__line"></span>
                       </div>
-                      ${item.description || item.action
-                        ? html`
-                            <div class="chat-divider__details">
-                              ${item.description
-                                ? html`<span class="chat-divider__description">
-                                    ${item.description}
-                                  </span>`
-                                : nothing}
-                              ${item.action?.kind === "session-checkpoints" &&
-                              props.onOpenSessionCheckpoints
-                                ? html`
-                                    <button
-                                      type="button"
-                                      class="btn btn--subtle btn--sm chat-divider__action"
-                                      @click=${() => props.onOpenSessionCheckpoints?.()}
-                                    >
-                                      ${item.action.label}
-                                    </button>
-                                  `
-                                : nothing}
-                            </div>
-                          `
-                        : nothing}
+                      ${
+                        item.description || item.action
+                          ? html`
+                              <div class="chat-divider__details">
+                                ${
+                                  item.description
+                                    ? html`<span class="chat-divider__description">
+                                        ${item.description}
+                                      </span>`
+                                    : nothing
+                                }
+                                ${
+                                  item.action?.kind === "session-checkpoints" &&
+                                  props.onOpenSessionCheckpoints
+                                    ? html`
+                                        <button
+                                          type="button"
+                                          class="btn btn--subtle btn--sm chat-divider__action"
+                                          @click=${() => props.onOpenSessionCheckpoints?.()}
+                                        >
+                                          ${item.action.label}
+                                        </button>
+                                      `
+                                    : nothing
+                                }
+                              </div>
+                            `
+                          : nothing
+                      }
                     </div>
                   `;
                 }
@@ -1963,39 +1995,45 @@ export function renderChat(props: ChatProps) {
       @dragover=${(e: DragEvent) => e.preventDefault()}
     >
       ${props.disabledReason ? html`<div class="callout">${props.disabledReason}</div>` : nothing}
-      ${props.error
-        ? html`
-            <div class="callout danger callout--dismissible" role="alert">
-              <span class="callout__content">${props.error}</span>
-              ${props.onDismissError
-                ? html`
-                    <button
-                      class="callout__dismiss"
-                      type="button"
-                      @click=${props.onDismissError}
-                      aria-label="Dismiss error"
-                      title="Dismiss error"
-                    >
-                      ${icons.x}
-                    </button>
-                  `
-                : nothing}
-            </div>
-          `
-        : nothing}
-      ${props.focusMode && props.onToggleFocusMode
-        ? html`
-            <button
-              class="chat-focus-exit"
-              type="button"
-              @click=${props.onToggleFocusMode}
-              aria-label="Exit focus mode"
-              title="Exit focus mode"
-            >
-              ${icons.x}
-            </button>
-          `
-        : nothing}
+      ${
+        props.error
+          ? html`
+              <div class="callout danger callout--dismissible" role="alert">
+                <span class="callout__content">${props.error}</span>
+                ${
+                  props.onDismissError
+                    ? html`
+                        <button
+                          class="callout__dismiss"
+                          type="button"
+                          @click=${props.onDismissError}
+                          aria-label="Dismiss error"
+                          title="Dismiss error"
+                        >
+                          ${icons.x}
+                        </button>
+                      `
+                    : nothing
+                }
+              </div>
+            `
+          : nothing
+      }
+      ${
+        props.focusMode && props.onToggleFocusMode
+          ? html`
+              <button
+                class="chat-focus-exit"
+                type="button"
+                @click=${props.onToggleFocusMode}
+                aria-label="Exit focus mode"
+                title="Exit focus mode"
+              >
+                ${icons.x}
+              </button>
+            `
+          : nothing
+      }
       ${renderSearchBar(requestUpdate)} ${renderPinnedSection(props, pinned, requestUpdate)}
 
       <div class="chat-workbench">
@@ -2007,34 +2045,36 @@ export function renderChat(props: ChatProps) {
             ${thread}
           </div>
 
-          ${sidebarOpen
-            ? html`
-                <resizable-divider
-                  .splitRatio=${splitRatio}
-                  .label=${t("nav.resize")}
-                  @resize=${(e: CustomEvent) => props.onSplitRatioChange?.(e.detail.splitRatio)}
-                ></resizable-divider>
-                <div class="chat-sidebar" @click=${handleCodeBlockCopy}>
-                  ${renderMarkdownSidebar({
-                    content: props.sidebarContent ?? null,
-                    error: props.sidebarError ?? null,
-                    canvasPluginSurfaceUrl: props.canvasPluginSurfaceUrl,
-                    embedSandboxMode: props.embedSandboxMode ?? "scripts",
-                    allowExternalEmbedUrls: props.allowExternalEmbedUrls ?? false,
-                    onClose: props.onCloseSidebar!,
-                    onViewRawText: () => {
-                      if (!props.onOpenSidebar) {
-                        return;
-                      }
-                      const rawContent = buildRawSidebarContent(props.sidebarContent);
-                      if (rawContent) {
-                        props.onOpenSidebar(rawContent);
-                      }
-                    },
-                  })}
-                </div>
-              `
-            : nothing}
+          ${
+            sidebarOpen
+              ? html`
+                  <resizable-divider
+                    .splitRatio=${splitRatio}
+                    .label=${t("nav.resize")}
+                    @resize=${(e: CustomEvent) => props.onSplitRatioChange?.(e.detail.splitRatio)}
+                  ></resizable-divider>
+                  <div class="chat-sidebar" @click=${handleCodeBlockCopy}>
+                    ${renderMarkdownSidebar({
+                      content: props.sidebarContent ?? null,
+                      error: props.sidebarError ?? null,
+                      canvasPluginSurfaceUrl: props.canvasPluginSurfaceUrl,
+                      embedSandboxMode: props.embedSandboxMode ?? "scripts",
+                      allowExternalEmbedUrls: props.allowExternalEmbedUrls ?? false,
+                      onClose: props.onCloseSidebar!,
+                      onViewRawText: () => {
+                        if (!props.onOpenSidebar) {
+                          return;
+                        }
+                        const rawContent = buildRawSidebarContent(props.sidebarContent);
+                        if (rawContent) {
+                          props.onOpenSidebar(rawContent);
+                        }
+                      },
+                    })}
+                  </div>
+                `
+              : nothing
+          }
         </div>
         ${renderWorkspaceFileRail(props.workspaceFiles)}
       </div>
@@ -2047,13 +2087,15 @@ export function renderChat(props: ChatProps) {
         onQueueRemove: props.onQueueRemove,
       })}
       ${renderSideResult(props.sideResult, props.onDismissSideResult)}
-      ${props.showNewMessages
-        ? html`
-            <button class="chat-new-messages" type="button" @click=${props.onScrollToBottom}>
-              ${icons.arrowDown} New messages
-            </button>
-          `
-        : nothing}
+      ${
+        props.showNewMessages
+          ? html`
+              <button class="chat-new-messages" type="button" @click=${props.onScrollToBottom}>
+                ${icons.arrowDown} New messages
+              </button>
+            `
+          : nothing
+      }
 
       <!-- Input bar -->
       <div
@@ -2081,21 +2123,25 @@ export function renderChat(props: ChatProps) {
         />
 
         ${renderRealtimeTalkOptions(props)}
-        ${props.realtimeTalkActive || props.realtimeTalkDetail || props.realtimeTalkTranscript
-          ? html`
-              <div class="agent-chat__stt-interim agent-chat__talk-status">
-                ${props.realtimeTalkDetail ??
-                ((props.realtimeTalkConversation?.length ?? 0) === 0
-                  ? props.realtimeTalkTranscript
-                  : null) ??
-                (props.realtimeTalkStatus === "thinking"
-                  ? "Asking OpenClaw..."
-                  : props.realtimeTalkStatus === "connecting"
-                    ? "Connecting Talk..."
-                    : "Talk live")}
-              </div>
-            `
-          : nothing}
+        ${
+          props.realtimeTalkActive || props.realtimeTalkDetail || props.realtimeTalkTranscript
+            ? html`
+                <div class="agent-chat__stt-interim agent-chat__talk-status">
+                  ${
+                    props.realtimeTalkDetail ??
+                    ((props.realtimeTalkConversation?.length ?? 0) === 0
+                      ? props.realtimeTalkTranscript
+                      : null) ??
+                    (props.realtimeTalkStatus === "thinking"
+                      ? "Asking OpenClaw..."
+                      : props.realtimeTalkStatus === "connecting"
+                        ? "Connecting Talk..."
+                        : "Talk live")
+                  }
+                </div>
+              `
+            : nothing
+        }
 
         <div class="agent-chat__composer-combobox">
           <textarea
@@ -2143,54 +2189,66 @@ export function renderChat(props: ChatProps) {
               <span class="agent-chat__control-label">${t("chat.composer.attachFile")}</span>
             </button>
 
-            ${props.onToggleRealtimeTalk
-              ? html`
-                  <button
-                    class="agent-chat__input-btn ${props.realtimeTalkActive
-                      ? "agent-chat__input-btn--talk"
-                      : ""}"
-                    @click=${props.onToggleRealtimeTalk}
-                    title=${props.realtimeTalkActive
-                      ? t("chat.composer.stopTalk")
-                      : t("chat.composer.startTalk")}
-                    aria-label=${props.realtimeTalkActive
-                      ? t("chat.composer.stopTalk")
-                      : t("chat.composer.startTalk")}
-                    ?disabled=${!props.connected}
-                  >
-                    ${props.realtimeTalkActive ? icons.volume2 : icons.radio}
-                    <span class="agent-chat__control-label"
-                      >${props.realtimeTalkActive
-                        ? t("chat.composer.stopTalk")
-                        : t("chat.composer.startTalk")}</span
+            ${
+              props.onToggleRealtimeTalk
+                ? html`
+                    <button
+                      class="agent-chat__input-btn ${
+                        props.realtimeTalkActive ? "agent-chat__input-btn--talk" : ""
+                      }"
+                      @click=${props.onToggleRealtimeTalk}
+                      title=${
+                        props.realtimeTalkActive
+                          ? t("chat.composer.stopTalk")
+                          : t("chat.composer.startTalk")
+                      }
+                      aria-label=${
+                        props.realtimeTalkActive
+                          ? t("chat.composer.stopTalk")
+                          : t("chat.composer.startTalk")
+                      }
+                      ?disabled=${!props.connected}
                     >
-                  </button>
-                `
-              : nothing}
-            ${props.onToggleRealtimeTalkOptions
-              ? html`
-                  <button
-                    class="agent-chat__input-btn ${props.realtimeTalkOptionsOpen
-                      ? "agent-chat__input-btn--talk"
-                      : ""}"
-                    @click=${props.onToggleRealtimeTalkOptions}
-                    title="Talk settings"
-                    aria-label="Talk settings"
-                    aria-expanded=${props.realtimeTalkOptionsOpen ? "true" : "false"}
-                    ?disabled=${!props.connected || props.realtimeTalkActive}
-                  >
-                    ${icons.settings}
-                    <span class="agent-chat__control-label">Talk settings</span>
-                  </button>
-                `
-              : nothing}
+                      ${props.realtimeTalkActive ? icons.volume2 : icons.radio}
+                      <span class="agent-chat__control-label"
+                        >${
+                          props.realtimeTalkActive
+                            ? t("chat.composer.stopTalk")
+                            : t("chat.composer.startTalk")
+                        }</span
+                      >
+                    </button>
+                  `
+                : nothing
+            }
+            ${
+              props.onToggleRealtimeTalkOptions
+                ? html`
+                    <button
+                      class="agent-chat__input-btn ${
+                        props.realtimeTalkOptionsOpen ? "agent-chat__input-btn--talk" : ""
+                      }"
+                      @click=${props.onToggleRealtimeTalkOptions}
+                      title="Talk settings"
+                      aria-label="Talk settings"
+                      aria-expanded=${props.realtimeTalkOptionsOpen ? "true" : "false"}
+                      ?disabled=${!props.connected || props.realtimeTalkActive}
+                    >
+                      ${icons.settings}
+                      <span class="agent-chat__control-label">Talk settings</span>
+                    </button>
+                  `
+                : nothing
+            }
             ${tokens ? html`<span class="agent-chat__token-count">${tokens}</span>` : nothing}
             ${renderChatRunStatusIndicator(composerRunStatus)}
           </div>
 
-          ${composerControls && composerControls !== nothing
-            ? html`<div class="agent-chat__composer-controls">${composerControls}</div>`
-            : nothing}
+          ${
+            composerControls && composerControls !== nothing
+              ? html`<div class="agent-chat__composer-controls">${composerControls}</div>`
+              : nothing
+          }
           ${renderChatRunControls({
             canAbort: showAbortableUi,
             connected: props.connected,

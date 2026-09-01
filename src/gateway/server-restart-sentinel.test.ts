@@ -45,19 +45,17 @@ const mocks = vi.hoisted(() => {
         threadId: undefined,
       }),
     ),
-    loadSessionEntry: vi.fn(
-      (): LoadedSessionEntry => ({
-        cfg: {},
-        entry: {
-          sessionId: "agent:main:main",
-          updatedAt: 0,
-        },
-        store: {},
-        storePath: "/tmp/sessions.json",
-        canonicalKey: "agent:main:main",
-        legacyKey: undefined,
-      }),
-    ),
+    loadSessionEntry: vi.fn((): LoadedSessionEntry => ({
+      cfg: {},
+      entry: {
+        sessionId: "agent:main:main",
+        updatedAt: 0,
+      },
+      store: {},
+      storePath: "/tmp/sessions.json",
+      canonicalKey: "agent:main:main",
+      legacyKey: undefined,
+    })),
     deliveryContextFromSession: vi.fn(
       ():
         | { channel?: string; to?: string; accountId?: string; threadId?: string | number }

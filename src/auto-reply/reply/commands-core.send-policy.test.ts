@@ -2,8 +2,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CommandHandler, HandleCommandsParams } from "./commands-types.js";
 
-const loadCommandHandlersMock = vi.hoisted(
-  (): ReturnType<typeof vi.fn<() => CommandHandler[]>> => vi.fn<() => CommandHandler[]>(() => []),
+const loadCommandHandlersMock = vi.hoisted((): ReturnType<typeof vi.fn<() => CommandHandler[]>> =>
+  vi.fn<() => CommandHandler[]>(() => []),
 );
 
 vi.mock("./commands-handlers.runtime.js", () => ({

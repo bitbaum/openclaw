@@ -335,22 +335,18 @@ async function collectLegacyPluginDependencyTargetEntries(
       cwd: process.cwd(),
     });
   const roots = uniqueSorted([resolveStateDir(env), resolveConfigDir(env), packageRoot]);
-  const stateDirectoryRoots = splitPathList(env.STATE_DIRECTORY).map(
-    (entry): CleanupTarget => ({
-      kind: "legacy",
-      path: path.join(resolveUserPath(entry, env), "plugin-runtime-deps"),
-    }),
-  );
+  const stateDirectoryRoots = splitPathList(env.STATE_DIRECTORY).map((entry): CleanupTarget => ({
+    kind: "legacy",
+    path: path.join(resolveUserPath(entry, env), "plugin-runtime-deps"),
+  }));
   const targets: CleanupTarget[] = [
     ...collectExplicitStageTargets(env),
     ...stateDirectoryRoots,
     ...roots.flatMap((root) => [
-      ...[...LEGACY_DIRECT_CHILD_NAMES].map(
-        (name): CleanupTarget => ({
-          kind: "legacy",
-          path: path.join(root, name),
-        }),
-      ),
+      ...[...LEGACY_DIRECT_CHILD_NAMES].map((name): CleanupTarget => ({
+        kind: "legacy",
+        path: path.join(root, name),
+      })),
       {
         kind: "legacy",
         path: path.join(root, ".local", "bundled-plugin-runtime-deps"),

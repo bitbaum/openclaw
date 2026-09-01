@@ -440,16 +440,18 @@ async function dispatchMessage(params: { cfg: ClawdbotConfig; event: FeishuMessa
 describe("handleFeishuMessage ACP routing", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockResolveConfiguredBindingRoute.mockReset().mockImplementation(
-      ({
-        route,
-      }: {
-        route: NonNullable<ConfiguredBindingRoute>["route"];
-      }): ConfiguredBindingRoute => ({
-        bindingResolution: null,
-        route,
-      }),
-    );
+    mockResolveConfiguredBindingRoute
+      .mockReset()
+      .mockImplementation(
+        ({
+          route,
+        }: {
+          route: NonNullable<ConfiguredBindingRoute>["route"];
+        }): ConfiguredBindingRoute => ({
+          bindingResolution: null,
+          route,
+        }),
+      );
     mockEnsureConfiguredBindingRouteReady.mockReset().mockResolvedValue({ ok: true });
     mockResolveBoundConversation.mockReset().mockReturnValue(null);
     mockTouchBinding.mockReset();
@@ -961,16 +963,18 @@ describe("handleFeishuMessage command authorization", () => {
     mockListFeishuThreadMessages.mockReset().mockResolvedValue([]);
     mockReadSessionUpdatedAt.mockReturnValue(undefined);
     mockResolveStorePath.mockReturnValue("/tmp/feishu-sessions.json");
-    mockResolveConfiguredBindingRoute.mockReset().mockImplementation(
-      ({
-        route,
-      }: {
-        route: NonNullable<ConfiguredBindingRoute>["route"];
-      }): ConfiguredBindingRoute => ({
-        bindingResolution: null,
-        route,
-      }),
-    );
+    mockResolveConfiguredBindingRoute
+      .mockReset()
+      .mockImplementation(
+        ({
+          route,
+        }: {
+          route: NonNullable<ConfiguredBindingRoute>["route"];
+        }): ConfiguredBindingRoute => ({
+          bindingResolution: null,
+          route,
+        }),
+      );
     mockEnsureConfiguredBindingRouteReady.mockReset().mockResolvedValue({ ok: true });
     mockResolveBoundConversation.mockReset().mockReturnValue(null);
     mockTouchBinding.mockReset();

@@ -544,9 +544,11 @@ export function renderSessions(props: SessionsProps) {
         <div>
           <div class="card-title">${t("sessionsView.title")}</div>
           <div class="card-sub">
-            ${props.result
-              ? t("sessionsView.store", { path: props.result.path })
-              : t("sessionsView.subtitle")}
+            ${
+              props.result
+                ? t("sessionsView.store", { path: props.result.path })
+                : t("sessionsView.subtitle")
+            }
           </div>
         </div>
         <button class="btn" ?disabled=${props.loading} @click=${props.onRefresh}>
@@ -569,104 +571,108 @@ export function renderSessions(props: SessionsProps) {
           </button>
         </div>
 
-        ${filtersExpanded
-          ? html`
-              <div
-                id="sessions-filter-bar"
-                class="sessions-filter-bar"
-                aria-label="Session filters"
-              >
-                <div class="session-filter-primary-row">
-                  <label class="session-filter-field" data-tooltip=${activeTooltip}>
-                    <span class="session-filter-label">${t("sessionsView.active")}</span>
-                    <input
-                      class="session-filter-input session-filter-input--minutes"
-                      placeholder=${t("sessionsView.minutesPlaceholder")}
-                      .value=${props.activeMinutes}
-                      ?disabled=${props.showArchived}
-                      @input=${(e: Event) =>
+        ${
+          filtersExpanded
+            ? html`
+                <div
+                  id="sessions-filter-bar"
+                  class="sessions-filter-bar"
+                  aria-label="Session filters"
+                >
+                  <div class="session-filter-primary-row">
+                    <label class="session-filter-field" data-tooltip=${activeTooltip}>
+                      <span class="session-filter-label">${t("sessionsView.active")}</span>
+                      <input
+                        class="session-filter-input session-filter-input--minutes"
+                        placeholder=${t("sessionsView.minutesPlaceholder")}
+                        .value=${props.activeMinutes}
+                        ?disabled=${props.showArchived}
+                        @input=${(e: Event) =>
+                          props.onFiltersChange({
+                            activeMinutes: (e.target as HTMLInputElement).value,
+                            limit: props.limit,
+                            includeGlobal: props.includeGlobal,
+                            includeUnknown: props.includeUnknown,
+                            showArchived: props.showArchived,
+                          })}
+                      />
+                    </label>
+                    <label class="session-filter-field" data-tooltip=${limitTooltip}>
+                      <span class="session-filter-label">${t("sessionsView.limit")}</span>
+                      <input
+                        class="session-filter-input session-filter-input--limit"
+                        .value=${props.limit}
+                        @input=${(e: Event) =>
+                          props.onFiltersChange({
+                            activeMinutes: props.activeMinutes,
+                            limit: (e.target as HTMLInputElement).value,
+                            includeGlobal: props.includeGlobal,
+                            includeUnknown: props.includeUnknown,
+                            showArchived: props.showArchived,
+                          })}
+                      />
+                    </label>
+                  </div>
+                  <div
+                    class="session-filter-toggle-group"
+                    role="group"
+                    aria-label=${t("sessionsView.sourceFilters")}
+                  >
+                    ${renderFilterToggle({
+                      name: "includeGlobal",
+                      checked: props.includeGlobal,
+                      label: t("sessionsView.global"),
+                      title: globalTooltip,
+                      onChange: (checked) =>
                         props.onFiltersChange({
-                          activeMinutes: (e.target as HTMLInputElement).value,
+                          activeMinutes: props.activeMinutes,
+                          limit: props.limit,
+                          includeGlobal: checked,
+                          includeUnknown: props.includeUnknown,
+                          showArchived: props.showArchived,
+                        }),
+                    })}
+                    ${renderFilterToggle({
+                      name: "includeUnknown",
+                      checked: props.includeUnknown,
+                      label: t("sessionsView.unknown"),
+                      title: unknownTooltip,
+                      onChange: (checked) =>
+                        props.onFiltersChange({
+                          activeMinutes: props.activeMinutes,
+                          limit: props.limit,
+                          includeGlobal: props.includeGlobal,
+                          includeUnknown: checked,
+                          showArchived: props.showArchived,
+                        }),
+                    })}
+                    ${renderFilterToggle({
+                      name: "showArchived",
+                      checked: props.showArchived,
+                      label: t("sessionsView.showArchived"),
+                      title: showArchivedTooltip,
+                      extraClass: "session-archive-toggle",
+                      onChange: (checked) =>
+                        props.onFiltersChange({
+                          activeMinutes: props.activeMinutes,
                           limit: props.limit,
                           includeGlobal: props.includeGlobal,
                           includeUnknown: props.includeUnknown,
-                          showArchived: props.showArchived,
-                        })}
-                    />
-                  </label>
-                  <label class="session-filter-field" data-tooltip=${limitTooltip}>
-                    <span class="session-filter-label">${t("sessionsView.limit")}</span>
-                    <input
-                      class="session-filter-input session-filter-input--limit"
-                      .value=${props.limit}
-                      @input=${(e: Event) =>
-                        props.onFiltersChange({
-                          activeMinutes: props.activeMinutes,
-                          limit: (e.target as HTMLInputElement).value,
-                          includeGlobal: props.includeGlobal,
-                          includeUnknown: props.includeUnknown,
-                          showArchived: props.showArchived,
-                        })}
-                    />
-                  </label>
+                          showArchived: checked,
+                        }),
+                    })}
+                  </div>
                 </div>
-                <div
-                  class="session-filter-toggle-group"
-                  role="group"
-                  aria-label=${t("sessionsView.sourceFilters")}
-                >
-                  ${renderFilterToggle({
-                    name: "includeGlobal",
-                    checked: props.includeGlobal,
-                    label: t("sessionsView.global"),
-                    title: globalTooltip,
-                    onChange: (checked) =>
-                      props.onFiltersChange({
-                        activeMinutes: props.activeMinutes,
-                        limit: props.limit,
-                        includeGlobal: checked,
-                        includeUnknown: props.includeUnknown,
-                        showArchived: props.showArchived,
-                      }),
-                  })}
-                  ${renderFilterToggle({
-                    name: "includeUnknown",
-                    checked: props.includeUnknown,
-                    label: t("sessionsView.unknown"),
-                    title: unknownTooltip,
-                    onChange: (checked) =>
-                      props.onFiltersChange({
-                        activeMinutes: props.activeMinutes,
-                        limit: props.limit,
-                        includeGlobal: props.includeGlobal,
-                        includeUnknown: checked,
-                        showArchived: props.showArchived,
-                      }),
-                  })}
-                  ${renderFilterToggle({
-                    name: "showArchived",
-                    checked: props.showArchived,
-                    label: t("sessionsView.showArchived"),
-                    title: showArchivedTooltip,
-                    extraClass: "session-archive-toggle",
-                    onChange: (checked) =>
-                      props.onFiltersChange({
-                        activeMinutes: props.activeMinutes,
-                        limit: props.limit,
-                        includeGlobal: props.includeGlobal,
-                        includeUnknown: props.includeUnknown,
-                        showArchived: checked,
-                      }),
-                  })}
-                </div>
-              </div>
-            `
-          : nothing}
+              `
+            : nothing
+        }
       </div>
 
-      ${props.error
-        ? html`<div class="callout danger" style="margin-bottom: 12px;">${props.error}</div>`
-        : nothing}
+      ${
+        props.error
+          ? html`<div class="callout danger" style="margin-bottom: 12px;">${props.error}</div>`
+          : nothing
+      }
 
       <div class="data-table-wrapper">
         <div class="data-table-toolbar">
@@ -680,49 +686,59 @@ export function renderSessions(props: SessionsProps) {
           </div>
         </div>
 
-        ${props.selectedKeys.size > 0
-          ? html`
-              <div class="data-table-bulk-bar">
-                <span
-                  >${t("sessionsView.selected", { count: String(props.selectedKeys.size) })}</span
-                >
-                <button class="btn btn--sm" @click=${props.onDeselectAll}>
-                  ${t("common.unselect")}
-                </button>
-                <button
-                  class="btn btn--sm danger"
-                  ?disabled=${props.loading}
-                  @click=${props.onDeleteSelected}
-                >
-                  ${icons.trash} ${t("sessionsView.deleteSelected")}
-                </button>
-              </div>
-            `
-          : nothing}
+        ${
+          props.selectedKeys.size > 0
+            ? html`
+                <div class="data-table-bulk-bar">
+                  <span
+                    >${t("sessionsView.selected", { count: String(props.selectedKeys.size) })}</span
+                  >
+                  <button class="btn btn--sm" @click=${props.onDeselectAll}>
+                    ${t("common.unselect")}
+                  </button>
+                  <button
+                    class="btn btn--sm danger"
+                    ?disabled=${props.loading}
+                    @click=${props.onDeleteSelected}
+                  >
+                    ${icons.trash} ${t("sessionsView.deleteSelected")}
+                  </button>
+                </div>
+              `
+            : nothing
+        }
 
         <div class="data-table-container">
           <table class="data-table sessions-table">
             <thead>
               <tr>
                 <th class="data-table-checkbox-col">
-                  ${paginated.length > 0
-                    ? html`<input
-                        type="checkbox"
-                        .checked=${paginated.length > 0 &&
-                        paginated.every((r) => props.selectedKeys.has(r.key))}
-                        .indeterminate=${paginated.some((r) => props.selectedKeys.has(r.key)) &&
-                        !paginated.every((r) => props.selectedKeys.has(r.key))}
-                        @change=${() => {
-                          const allSelected = paginated.every((r) => props.selectedKeys.has(r.key));
-                          if (allSelected) {
-                            props.onDeselectPage(paginated.map((r) => r.key));
-                          } else {
-                            props.onSelectPage(paginated.map((r) => r.key));
+                  ${
+                    paginated.length > 0
+                      ? html`<input
+                          type="checkbox"
+                          .checked=${
+                            paginated.length > 0 &&
+                            paginated.every((r) => props.selectedKeys.has(r.key))
                           }
-                        }}
-                        aria-label=${t("sessionsView.selectAllOnPage")}
-                      />`
-                    : nothing}
+                          .indeterminate=${
+                            paginated.some((r) => props.selectedKeys.has(r.key)) &&
+                            !paginated.every((r) => props.selectedKeys.has(r.key))
+                          }
+                          @change=${() => {
+                            const allSelected = paginated.every((r) =>
+                              props.selectedKeys.has(r.key),
+                            );
+                            if (allSelected) {
+                              props.onDeselectPage(paginated.map((r) => r.key));
+                            } else {
+                              props.onSelectPage(paginated.map((r) => r.key));
+                            }
+                          }}
+                          aria-label=${t("sessionsView.selectAllOnPage")}
+                        />`
+                      : nothing
+                  }
                 </th>
                 ${sortHeader("key", t("sessionsView.key"), "data-table-key-col")}
                 <th>${t("sessionsView.label")}</th>
@@ -740,57 +756,67 @@ export function renderSessions(props: SessionsProps) {
               </tr>
             </thead>
             <tbody>
-              ${paginated.length === 0
-                ? html`
-                    <tr>
-                      <td colspan="14" class="data-table-empty-cell">
-                        ${emptyBecauseFiltered
-                          ? html`
-                              <div class="data-table-empty-state" role="status" aria-live="polite">
-                                <div>${t("sessionsView.noSessionsMatchFilters")}</div>
-                                <button class="btn btn--sm" @click=${props.onClearFilters}>
-                                  ${t("sessionsView.showAll")}
-                                </button>
-                              </div>
-                            `
-                          : t("sessionsView.noSessions")}
-                      </td>
-                    </tr>
-                  `
-                : paginated.flatMap((row) => renderRows(row, props))}
+              ${
+                paginated.length === 0
+                  ? html`
+                      <tr>
+                        <td colspan="14" class="data-table-empty-cell">
+                          ${
+                            emptyBecauseFiltered
+                              ? html`
+                                  <div
+                                    class="data-table-empty-state"
+                                    role="status"
+                                    aria-live="polite"
+                                  >
+                                    <div>${t("sessionsView.noSessionsMatchFilters")}</div>
+                                    <button class="btn btn--sm" @click=${props.onClearFilters}>
+                                      ${t("sessionsView.showAll")}
+                                    </button>
+                                  </div>
+                                `
+                              : t("sessionsView.noSessions")
+                          }
+                        </td>
+                      </tr>
+                    `
+                  : paginated.flatMap((row) => renderRows(row, props))
+              }
             </tbody>
           </table>
         </div>
 
-        ${totalRows > 0
-          ? html`
-              <div class="data-table-pagination">
-                <div class="data-table-pagination__info">
-                  ${page * props.pageSize + 1}-${Math.min((page + 1) * props.pageSize, totalRows)}
-                  of ${totalRows} row${totalRows === 1 ? "" : "s"}
+        ${
+          totalRows > 0
+            ? html`
+                <div class="data-table-pagination">
+                  <div class="data-table-pagination__info">
+                    ${page * props.pageSize + 1}-${Math.min((page + 1) * props.pageSize, totalRows)}
+                    of ${totalRows} row${totalRows === 1 ? "" : "s"}
+                  </div>
+                  <div class="data-table-pagination__controls">
+                    <select
+                      style="height: 32px; padding: 0 8px; font-size: 13px; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--card);"
+                      .value=${String(props.pageSize)}
+                      @change=${(e: Event) =>
+                        props.onPageSizeChange(Number((e.target as HTMLSelectElement).value))}
+                    >
+                      ${PAGE_SIZES.map((s) => html`<option value=${s}>${s} per page</option>`)}
+                    </select>
+                    <button ?disabled=${page <= 0} @click=${() => props.onPageChange(page - 1)}>
+                      Previous
+                    </button>
+                    <button
+                      ?disabled=${page >= totalPages - 1}
+                      @click=${() => props.onPageChange(page + 1)}
+                    >
+                      ${t("common.next")}
+                    </button>
+                  </div>
                 </div>
-                <div class="data-table-pagination__controls">
-                  <select
-                    style="height: 32px; padding: 0 8px; font-size: 13px; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--card);"
-                    .value=${String(props.pageSize)}
-                    @change=${(e: Event) =>
-                      props.onPageSizeChange(Number((e.target as HTMLSelectElement).value))}
-                  >
-                    ${PAGE_SIZES.map((s) => html`<option value=${s}>${s} per page</option>`)}
-                  </select>
-                  <button ?disabled=${page <= 0} @click=${() => props.onPageChange(page - 1)}>
-                    Previous
-                  </button>
-                  <button
-                    ?disabled=${page >= totalPages - 1}
-                    @click=${() => props.onPageChange(page + 1)}
-                  >
-                    ${t("common.next")}
-                  </button>
-                </div>
-              </div>
-            `
-          : nothing}
+              `
+            : nothing
+        }
       </div>
     </section>
   `;
@@ -904,32 +930,36 @@ function renderRows(row: GatewaySessionRow, props: SessionsProps) {
           class=${friendlyKeyLabel ? "session-key-cell" : "mono session-key-cell"}
           title=${keyCellTitle}
         >
-          ${canLink
-            ? html`<a
-                href=${chatUrl}
-                class="session-link"
-                @click=${(e: MouseEvent) => {
-                  if (
-                    e.defaultPrevented ||
-                    e.button !== 0 ||
-                    e.metaKey ||
-                    e.ctrlKey ||
-                    e.shiftKey ||
-                    e.altKey
-                  ) {
-                    return;
-                  }
-                  if (props.onNavigateToChat) {
-                    e.preventDefault();
-                    props.onNavigateToChat(row.key);
-                  }
-                }}
-                >${friendlyKeyLabel ?? row.key}</a
-              >`
-            : (friendlyKeyLabel ?? row.key)}
-          ${showDisplayName
-            ? html`<span class="muted session-key-display-name">${displayName}</span>`
-            : nothing}
+          ${
+            canLink
+              ? html`<a
+                  href=${chatUrl}
+                  class="session-link"
+                  @click=${(e: MouseEvent) => {
+                    if (
+                      e.defaultPrevented ||
+                      e.button !== 0 ||
+                      e.metaKey ||
+                      e.ctrlKey ||
+                      e.shiftKey ||
+                      e.altKey
+                    ) {
+                      return;
+                    }
+                    if (props.onNavigateToChat) {
+                      e.preventDefault();
+                      props.onNavigateToChat(row.key);
+                    }
+                  }}
+                  >${friendlyKeyLabel ?? row.key}</a
+                >`
+              : (friendlyKeyLabel ?? row.key)
+          }
+          ${
+            showDisplayName
+              ? html`<span class="muted session-key-display-name">${displayName}</span>`
+              : nothing
+          }
         </div>
       </td>
       <td>
@@ -959,25 +989,29 @@ function renderRows(row: GatewaySessionRow, props: SessionsProps) {
       <td class="session-token-cell">${formatSessionTokens(row)}</td>
       <td class="session-compaction-col">
         <div class="session-compaction-cell">
-          ${hasCheckpoints
-            ? html`
-                <button
-                  class="session-compaction-trigger"
-                  type="button"
-                  aria-expanded=${String(isExpanded)}
-                  aria-controls=${detailsId}
-                  aria-label=${isExpanded
-                    ? t("sessionsView.hideSessionDetails", { count: checkpointLabel })
-                    : t("sessionsView.showSessionDetails", { count: checkpointLabel })}
-                  @click=${(e: MouseEvent) => {
-                    e.stopPropagation();
-                    activateCheckpointDetails();
-                  }}
-                >
-                  <span class="session-compaction-count">${checkpointLabel}</span>
-                </button>
-              `
-            : html`<span class="muted session-compaction-count">${t("common.none")}</span>`}
+          ${
+            hasCheckpoints
+              ? html`
+                  <button
+                    class="session-compaction-trigger"
+                    type="button"
+                    aria-expanded=${String(isExpanded)}
+                    aria-controls=${detailsId}
+                    aria-label=${
+                      isExpanded
+                        ? t("sessionsView.hideSessionDetails", { count: checkpointLabel })
+                        : t("sessionsView.showSessionDetails", { count: checkpointLabel })
+                    }
+                    @click=${(e: MouseEvent) => {
+                      e.stopPropagation();
+                      activateCheckpointDetails();
+                    }}
+                  >
+                    <span class="session-compaction-count">${checkpointLabel}</span>
+                  </button>
+                `
+              : html`<span class="muted session-compaction-count">${t("common.none")}</span>`
+          }
         </div>
       </td>
       <td>
@@ -1051,23 +1085,27 @@ function renderRows(row: GatewaySessionRow, props: SessionsProps) {
         </select>
       </td>
       <td>
-        ${props.onAddToWorkboard && canLink
-          ? html`
-              <button
-                class="icon-btn"
-                title=${captured
-                  ? t("sessionsView.openWorkboardCard")
-                  : t("sessionsView.addToWorkboard")}
-                ?disabled=${props.loading || captureBusy}
-                @click=${(event: MouseEvent) => {
-                  event.stopPropagation();
-                  void props.onAddToWorkboard?.(row);
-                }}
-              >
-                ${captured ? icons.check : icons.plus}
-              </button>
-            `
-          : nothing}
+        ${
+          props.onAddToWorkboard && canLink
+            ? html`
+                <button
+                  class="icon-btn"
+                  title=${
+                    captured
+                      ? t("sessionsView.openWorkboardCard")
+                      : t("sessionsView.addToWorkboard")
+                  }
+                  ?disabled=${props.loading || captureBusy}
+                  @click=${(event: MouseEvent) => {
+                    event.stopPropagation();
+                    void props.onAddToWorkboard?.(row);
+                  }}
+                >
+                  ${captured ? icons.check : icons.plus}
+                </button>
+              `
+            : nothing
+        }
       </td>
     </tr>`,
     ...(isExpanded && hasCheckpoints
@@ -1081,11 +1119,13 @@ function renderRows(row: GatewaySessionRow, props: SessionsProps) {
                       ${t("sessionsView.sessionDetails")}
                     </div>
                     <div class="session-details-panel__title">${friendlyKeyLabel ?? row.key}</div>
-                    ${showDisplayName
-                      ? html`
-                          <div class="muted session-details-panel__subtitle">${displayName}</div>
-                        `
-                      : nothing}
+                    ${
+                      showDisplayName
+                        ? html`
+                            <div class="muted session-details-panel__subtitle">${displayName}</div>
+                          `
+                        : nothing
+                    }
                   </div>
                   <div class="session-details-panel__badges">
                     ${renderSessionStatusBadge(row)} ${renderSessionGoalChip(row.goal)}
@@ -1115,68 +1155,76 @@ function renderRows(row: GatewaySessionRow, props: SessionsProps) {
                       <div class="session-details-section__title">${checkpointLabel}</div>
                     </div>
                   </div>
-                  ${props.checkpointLoadingKey === row.key
-                    ? html`<div class="muted session-details-empty">
-                        ${t("sessionsView.loadingCheckpoints")}
-                      </div>`
-                    : checkpointError
-                      ? html`<div class="callout danger">${checkpointError}</div>`
-                      : checkpointItems.length === 0
-                        ? html`<div class="muted session-details-empty">
-                            ${t("sessionsView.noCheckpoints")}
-                          </div>`
-                        : html`
-                            <div class="session-checkpoint-list">
-                              ${checkpointItems.map(
-                                (checkpoint) => html`
-                                  <div class="session-checkpoint-card">
-                                    <div class="session-checkpoint-card__header">
-                                      <strong>
-                                        ${formatCheckpointReason(checkpoint.reason)} ·
-                                        ${formatRelativeTimestamp(checkpoint.createdAt)}
-                                      </strong>
-                                      <span class="muted session-checkpoint-card__delta">
-                                        ${formatCheckpointDelta(checkpoint)}
-                                      </span>
+                  ${
+                    props.checkpointLoadingKey === row.key
+                      ? html`<div class="muted session-details-empty">
+                          ${t("sessionsView.loadingCheckpoints")}
+                        </div>`
+                      : checkpointError
+                        ? html`<div class="callout danger">${checkpointError}</div>`
+                        : checkpointItems.length === 0
+                          ? html`<div class="muted session-details-empty">
+                              ${t("sessionsView.noCheckpoints")}
+                            </div>`
+                          : html`
+                              <div class="session-checkpoint-list">
+                                ${checkpointItems.map(
+                                  (checkpoint) => html`
+                                    <div class="session-checkpoint-card">
+                                      <div class="session-checkpoint-card__header">
+                                        <strong>
+                                          ${formatCheckpointReason(checkpoint.reason)} ·
+                                          ${formatRelativeTimestamp(checkpoint.createdAt)}
+                                        </strong>
+                                        <span class="muted session-checkpoint-card__delta">
+                                          ${formatCheckpointDelta(checkpoint)}
+                                        </span>
+                                      </div>
+                                      ${
+                                        checkpoint.summary
+                                          ? html`<div class="session-checkpoint-card__summary">
+                                              ${checkpoint.summary}
+                                            </div>`
+                                          : html`
+                                              <div class="muted">
+                                                ${t("sessionsView.noSummary")}
+                                              </div>
+                                            `
+                                      }
+                                      <div class="session-checkpoint-card__actions">
+                                        <button
+                                          class="btn btn--sm"
+                                          ?disabled=${
+                                            props.checkpointBusyKey === checkpoint.checkpointId
+                                          }
+                                          @click=${() =>
+                                            props.onBranchFromCheckpoint(
+                                              row.key,
+                                              checkpoint.checkpointId,
+                                            )}
+                                        >
+                                          ${t("sessionsView.branchFromCheckpoint")}
+                                        </button>
+                                        <button
+                                          class="btn btn--sm"
+                                          ?disabled=${
+                                            props.checkpointBusyKey === checkpoint.checkpointId
+                                          }
+                                          @click=${() =>
+                                            props.onRestoreCheckpoint(
+                                              row.key,
+                                              checkpoint.checkpointId,
+                                            )}
+                                        >
+                                          ${t("sessionsView.restoreCheckpoint")}
+                                        </button>
+                                      </div>
                                     </div>
-                                    ${checkpoint.summary
-                                      ? html`<div class="session-checkpoint-card__summary">
-                                          ${checkpoint.summary}
-                                        </div>`
-                                      : html`
-                                          <div class="muted">${t("sessionsView.noSummary")}</div>
-                                        `}
-                                    <div class="session-checkpoint-card__actions">
-                                      <button
-                                        class="btn btn--sm"
-                                        ?disabled=${props.checkpointBusyKey ===
-                                        checkpoint.checkpointId}
-                                        @click=${() =>
-                                          props.onBranchFromCheckpoint(
-                                            row.key,
-                                            checkpoint.checkpointId,
-                                          )}
-                                      >
-                                        ${t("sessionsView.branchFromCheckpoint")}
-                                      </button>
-                                      <button
-                                        class="btn btn--sm"
-                                        ?disabled=${props.checkpointBusyKey ===
-                                        checkpoint.checkpointId}
-                                        @click=${() =>
-                                          props.onRestoreCheckpoint(
-                                            row.key,
-                                            checkpoint.checkpointId,
-                                          )}
-                                      >
-                                        ${t("sessionsView.restoreCheckpoint")}
-                                      </button>
-                                    </div>
-                                  </div>
-                                `,
-                              )}
-                            </div>
-                          `}
+                                  `,
+                                )}
+                              </div>
+                            `
+                  }
                 </div>
               </div>
             </td>

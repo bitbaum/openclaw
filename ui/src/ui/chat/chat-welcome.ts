@@ -51,19 +51,21 @@ export function renderWelcomeState(props: ChatWelcomeProps) {
   return html`
     <div class="agent-chat__welcome" style="--agent-color: var(--accent)">
       <div class="agent-chat__welcome-glow"></div>
-      ${avatar
-        ? html`<img
-            src=${avatar}
-            alt=${name}
-            style="width:56px; height:56px; border-radius:50%; object-fit:cover;"
-          />`
-        : avatarText
-          ? html`<div class="agent-chat__avatar agent-chat__avatar--text" aria-label=${name}>
-              ${avatarText}
-            </div>`
-          : html`<div class="agent-chat__avatar agent-chat__avatar--logo">
-              <img src=${fallbackAvatarUrl} alt=${name} />
-            </div>`}
+      ${
+        avatar
+          ? html`<img
+              src=${avatar}
+              alt=${name}
+              style="width:56px; height:56px; border-radius:50%; object-fit:cover;"
+            />`
+          : avatarText
+            ? html`<div class="agent-chat__avatar agent-chat__avatar--text" aria-label=${name}>
+                ${avatarText}
+              </div>`
+            : html`<div class="agent-chat__avatar agent-chat__avatar--logo">
+                <img src=${fallbackAvatarUrl} alt=${name} />
+              </div>`
+      }
       <h2>${name}</h2>
       <div class="agent-chat__badges">
         <span class="agent-chat__badge"

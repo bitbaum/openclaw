@@ -160,21 +160,22 @@ export function renderMcp(props: McpViewProps) {
             </button>
             <button
               class="btn btn--sm primary"
-              ?disabled=${!props.configDirty ||
-              !props.connected ||
-              props.configApplying ||
-              props.configSaving}
+              ?disabled=${
+                !props.configDirty || !props.connected || props.configApplying || props.configSaving
+              }
               @click=${props.onApplyConfig}
             >
               ${props.configApplying ? "Publishing..." : "Save & Publish"}
             </button>
           </div>
         </div>
-        ${rows.length
-          ? html`<div class="mcp-server-list__rows">
-              ${rows.map((row) => renderServerRow(props, row))}
-            </div>`
-          : html`<div class="data-table-empty-state">No MCP servers configured.</div>`}
+        ${
+          rows.length
+            ? html`<div class="mcp-server-list__rows">
+                ${rows.map((row) => renderServerRow(props, row))}
+              </div>`
+            : html`<div class="data-table-empty-state">No MCP servers configured.</div>`
+        }
       </section>
 
       ${props.editor}

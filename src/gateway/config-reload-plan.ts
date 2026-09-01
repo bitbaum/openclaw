@@ -166,20 +166,16 @@ function listReloadRules(): ReloadRule[] {
   // Channel docking: plugins contribute hot reload/no-op prefixes here.
   const channelReloadRules: ReloadRule[] = listChannelPlugins().flatMap((plugin) =>
     (plugin.reload?.configPrefixes ?? [])
-      .map(
-        (prefix): ReloadRule => ({
-          prefix,
-          kind: "hot",
-          actions: [`restart-channel:${plugin.id}` as ReloadAction],
-        }),
-      )
+      .map((prefix): ReloadRule => ({
+        prefix,
+        kind: "hot",
+        actions: [`restart-channel:${plugin.id}` as ReloadAction],
+      }))
       .concat(
-        (plugin.reload?.noopPrefixes ?? []).map(
-          (prefix): ReloadRule => ({
-            prefix,
-            kind: "none",
-          }),
-        ),
+        (plugin.reload?.noopPrefixes ?? []).map((prefix): ReloadRule => ({
+          prefix,
+          kind: "none",
+        })),
       ),
   );
   const channelPluginStateRules: ReloadRule[] = listChannelPlugins().flatMap((plugin) => [
@@ -195,25 +191,19 @@ function listReloadRules(): ReloadRule[] {
   ]);
   const pluginReloadRules: ReloadRule[] = (registry?.reloads ?? []).flatMap((entry) =>
     (entry.registration.restartPrefixes ?? [])
-      .map(
-        (prefix): ReloadRule => ({
-          prefix,
-          kind: "restart",
-        }),
-      )
+      .map((prefix): ReloadRule => ({
+        prefix,
+        kind: "restart",
+      }))
       .concat(
-        (entry.registration.hotPrefixes ?? []).map(
-          (prefix): ReloadRule => ({
-            prefix,
-            kind: "hot",
-          }),
-        ),
-        (entry.registration.noopPrefixes ?? []).map(
-          (prefix): ReloadRule => ({
-            prefix,
-            kind: "none",
-          }),
-        ),
+        (entry.registration.hotPrefixes ?? []).map((prefix): ReloadRule => ({
+          prefix,
+          kind: "hot",
+        })),
+        (entry.registration.noopPrefixes ?? []).map((prefix): ReloadRule => ({
+          prefix,
+          kind: "none",
+        })),
       ),
   );
   const rules = [

@@ -787,13 +787,7 @@ type DurableSendIntent = {
   batch?: RenderedMessageBatch;
   liveState?: LiveMessageState;
   status:
-    | "pending"
-    | "sending"
-    | "committing"
-    | "unknown_after_send"
-    | "sent"
-    | "failed"
-    | "cancelled";
+    "pending" | "sending" | "committing" | "unknown_after_send" | "sent" | "failed" | "cancelled";
   attempt: number;
   nextAttemptAt?: number;
   receipt?: MessageReceipt;

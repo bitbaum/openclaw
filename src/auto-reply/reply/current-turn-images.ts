@@ -121,13 +121,11 @@ export async function resolveCurrentTurnImages(params: {
       cfg: params.cfg,
       includeRecentHistoryImages: false,
     });
-    const images = resolved.attachments.map(
-      (attachment): ImageContent => ({
-        type: "image",
-        data: attachment.data,
-        mimeType: attachment.mediaType,
-      }),
-    );
+    const images = resolved.attachments.map((attachment): ImageContent => ({
+      type: "image",
+      data: attachment.data,
+      mimeType: attachment.mediaType,
+    }));
     if (images.length < undescribedImageAttachments.length) {
       logVerbose(
         `agent-runner: native OpenClaw media resolution produced ${images.length}/${undescribedImageAttachments.length} current image attachment(s); falling back to prompt image refs`,

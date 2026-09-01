@@ -442,27 +442,25 @@ describe("AcpxRuntime fresh reset wrapper", () => {
         list: () => ["codex"],
       },
     });
-    vi.spyOn(delegate, "startTurn").mockImplementation(
-      (input): AcpRuntimeTurn => ({
-        requestId: input.requestId,
-        events: (async function* () {
-          yield {
-            type: "text_delta" as const,
-            stream: "output" as const,
-            text: "Vou mapear o fluxo real primeiro...",
-          };
-        })(),
-        result: Promise.resolve({
-          status: "failed" as const,
-          error: {
-            message: "Internal error",
-            retryable: false,
-          },
-        }),
-        cancel: vi.fn(async () => {}),
-        closeStream: vi.fn(async () => {}),
+    vi.spyOn(delegate, "startTurn").mockImplementation((input): AcpRuntimeTurn => ({
+      requestId: input.requestId,
+      events: (async function* () {
+        yield {
+          type: "text_delta" as const,
+          stream: "output" as const,
+          text: "Vou mapear o fluxo real primeiro...",
+        };
+      })(),
+      result: Promise.resolve({
+        status: "failed" as const,
+        error: {
+          message: "Internal error",
+          retryable: false,
+        },
       }),
-    );
+      cancel: vi.fn(async () => {}),
+      closeStream: vi.fn(async () => {}),
+    }));
 
     const turn = runtime.startTurn({
       handle: {
@@ -561,8 +559,9 @@ describe("AcpxRuntime fresh reset wrapper", () => {
     const runTurn = vi.spyOn(delegate, "runTurn").mockImplementation(async function* () {
       yield { type: "done" };
     });
-    const startTurn = vi.spyOn(delegate, "startTurn").mockImplementation(
-      (input): AcpRuntimeTurn => ({
+    const startTurn = vi
+      .spyOn(delegate, "startTurn")
+      .mockImplementation((input): AcpRuntimeTurn => ({
         requestId: input.requestId,
         events: (async function* () {
           yield { type: "done" as const, stopReason: "end_turn" };
@@ -573,8 +572,7 @@ describe("AcpxRuntime fresh reset wrapper", () => {
         }),
         cancel: vi.fn(async () => {}),
         closeStream: vi.fn(async () => {}),
-      }),
-    );
+      }));
 
     for await (const ignoredEventValue of runtime.runTurn({
       handle: {

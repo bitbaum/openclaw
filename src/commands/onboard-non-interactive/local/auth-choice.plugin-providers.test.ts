@@ -6,26 +6,22 @@ import type { CopilotRuntimePluginInstallResult } from "../../copilot-runtime-pl
 import { applyNonInteractivePluginProviderChoice } from "./auth-choice.plugin-providers.js";
 
 const ensureCodexRuntimePluginForModelSelection = vi.hoisted(() =>
-  vi.fn(
-    async ({ cfg }: { cfg: OpenClawConfig }): Promise<CodexRuntimePluginInstallResult> => ({
-      cfg,
-      required: false,
-      installed: false,
-    }),
-  ),
+  vi.fn(async ({ cfg }: { cfg: OpenClawConfig }): Promise<CodexRuntimePluginInstallResult> => ({
+    cfg,
+    required: false,
+    installed: false,
+  })),
 );
 vi.mock("../../codex-runtime-plugin-install.js", () => ({
   CODEX_RUNTIME_PLUGIN_ID: "codex",
   ensureCodexRuntimePluginForModelSelection,
 }));
 const ensureCopilotRuntimePluginForModelSelection = vi.hoisted(() =>
-  vi.fn(
-    async ({ cfg }: { cfg: OpenClawConfig }): Promise<CopilotRuntimePluginInstallResult> => ({
-      cfg,
-      required: false,
-      installed: false,
-    }),
-  ),
+  vi.fn(async ({ cfg }: { cfg: OpenClawConfig }): Promise<CopilotRuntimePluginInstallResult> => ({
+    cfg,
+    required: false,
+    installed: false,
+  })),
 );
 vi.mock("../../copilot-runtime-plugin-install.js", () => ({
   ensureCopilotRuntimePluginForModelSelection,

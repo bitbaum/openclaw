@@ -103,14 +103,12 @@ const defaultCoreHealthCheckDeps: CoreHealthCheckDeps = {
 export function configValidationIssuesToHealthFindings(
   issues: readonly ConfigValidationIssue[],
 ): readonly HealthFinding[] {
-  return issues.map(
-    (issue): HealthFinding => ({
-      checkId: FINAL_CONFIG_VALIDATION_CHECK_ID,
-      severity: "error",
-      message: issue.message,
-      path: issue.path || "<root>",
-    }),
-  );
+  return issues.map((issue): HealthFinding => ({
+    checkId: FINAL_CONFIG_VALIDATION_CHECK_ID,
+    severity: "error",
+    message: issue.message,
+    path: issue.path || "<root>",
+  }));
 }
 
 const gatewayConfigCheck: HealthCheck = {
@@ -352,15 +350,13 @@ const legacyStateCheck: HealthCheck = {
   async detect(ctx) {
     const { detectLegacyStateMigrations } = await import("../commands/doctor-state-migrations.js");
     const detected = await detectLegacyStateMigrations({ cfg: ctx.cfg });
-    return detected.preview.map(
-      (line): HealthFinding => ({
-        checkId: "core/doctor/legacy-state",
-        severity: "warning",
-        message: line.replace(/^- /, ""),
-        path: detected.stateDir,
-        fixHint: "Run `openclaw doctor --fix` to migrate legacy state.",
-      }),
-    );
+    return detected.preview.map((line): HealthFinding => ({
+      checkId: "core/doctor/legacy-state",
+      severity: "warning",
+      message: line.replace(/^- /, ""),
+      path: detected.stateDir,
+      fixHint: "Run `openclaw doctor --fix` to migrate legacy state.",
+    }));
   },
 };
 
@@ -625,28 +621,26 @@ const codexSessionRoutesCheck: HealthCheck = {
   description: "Codex runtime routes have a registered Codex plugin harness before sessions run.",
   source: "doctor",
   async detect(ctx) {
-    return collectDisabledCodexPluginRouteIssues(ctx.cfg).map(
-      (issue): HealthFinding => ({
-        checkId: CODEX_SESSION_ROUTES_CHECK_ID,
-        severity: "warning",
-        message: [
-          `${issue.path} routes ${issue.modelRef} to ${issue.canonicalModel}`,
-          "with Codex runtime, but the Codex plugin is disabled by config.",
-        ].join(" "),
-        path: issue.path,
-        target: issue.canonicalModel,
-        requirement: "Codex plugin enabled for routes that use the Codex runtime.",
-        fixHint: issue.blockedOutsideEntry
-          ? [
-              "Enable plugin loading and remove codex from plugins.deny,",
-              "or set the affected OpenAI models to an OpenClaw runtime policy.",
-            ].join(" ")
-          : [
-              "Run `openclaw doctor --fix`: it enables plugins.entries.codex,",
-              "or set the affected OpenAI models to an OpenClaw runtime policy.",
-            ].join(" "),
-      }),
-    );
+    return collectDisabledCodexPluginRouteIssues(ctx.cfg).map((issue): HealthFinding => ({
+      checkId: CODEX_SESSION_ROUTES_CHECK_ID,
+      severity: "warning",
+      message: [
+        `${issue.path} routes ${issue.modelRef} to ${issue.canonicalModel}`,
+        "with Codex runtime, but the Codex plugin is disabled by config.",
+      ].join(" "),
+      path: issue.path,
+      target: issue.canonicalModel,
+      requirement: "Codex plugin enabled for routes that use the Codex runtime.",
+      fixHint: issue.blockedOutsideEntry
+        ? [
+            "Enable plugin loading and remove codex from plugins.deny,",
+            "or set the affected OpenAI models to an OpenClaw runtime policy.",
+          ].join(" ")
+        : [
+            "Run `openclaw doctor --fix`: it enables plugins.entries.codex,",
+            "or set the affected OpenAI models to an OpenClaw runtime policy.",
+          ].join(" "),
+    }));
   },
 };
 

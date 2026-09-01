@@ -796,28 +796,32 @@ function renderCardModal(props: WorkboardProps) {
             ${icons.x}
           </button>
         </div>
-        ${!editing
-          ? html`
-              <div class="workboard-template-strip" aria-label=${t("workboard.templatesLabel")}>
-                ${WORKBOARD_TEMPLATES.map(
-                  (template) => html`
-                    <button
-                      class="btn btn--xs ${state.draftTemplateId === template.id
-                        ? "workboard-template-strip__button--active"
-                        : ""}"
-                      type="button"
-                      @click=${() => {
-                        applyTemplate(state, template.id);
-                        props.onRequestUpdate?.();
-                      }}
-                    >
-                      ${t(`workboard.template.${template.id}`)}
-                    </button>
-                  `,
-                )}
-              </div>
-            `
-          : nothing}
+        ${
+          !editing
+            ? html`
+                <div class="workboard-template-strip" aria-label=${t("workboard.templatesLabel")}>
+                  ${WORKBOARD_TEMPLATES.map(
+                    (template) => html`
+                      <button
+                        class="btn btn--xs ${
+                          state.draftTemplateId === template.id
+                            ? "workboard-template-strip__button--active"
+                            : ""
+                        }"
+                        type="button"
+                        @click=${() => {
+                          applyTemplate(state, template.id);
+                          props.onRequestUpdate?.();
+                        }}
+                      >
+                        ${t(`workboard.template.${template.id}`)}
+                      </button>
+                    `,
+                  )}
+                </div>
+              `
+            : nothing
+        }
         <div class="workboard-draft__main">
           <label class="workboard-field">
             <span>${t("workboard.fieldTitle")}</span>
@@ -942,51 +946,55 @@ function renderCardModal(props: WorkboardProps) {
             />
           </label>
         </div>
-        ${editing
-          ? html`
-              <section
-                class="workboard-field workboard-field--wide"
-                aria-labelledby="workboard-card-comments-title"
-              >
-                <span id="workboard-card-comments-title">
-                  ${t("workboard.badgeComments", { count: String(comments.length) })}
-                </span>
-                ${comments.length
-                  ? html`
-                      <ol>
-                        ${comments.map((comment) => html`<li>${comment.body}</li>`)}
-                      </ol>
-                    `
-                  : nothing}
-                <textarea
-                  class="input workboard-comments__input"
+        ${
+          editing
+            ? html`
+                <section
+                  class="workboard-field workboard-field--wide"
                   aria-labelledby="workboard-card-comments-title"
-                  maxlength="2000"
-                  .value=${state.draftCommentBody}
-                  @input=${(event: InputEvent) => {
-                    state.draftCommentBody = (event.currentTarget as HTMLTextAreaElement).value;
-                    props.onRequestUpdate?.();
-                  }}
-                ></textarea>
-                <div class="workboard-modal__actions">
-                  <button
-                    class="btn"
-                    type="button"
-                    ?disabled=${state.loading || draftCommentBusy || !state.draftCommentBody.trim()}
-                    @click=${() => {
-                      void addWorkboardCardComment({
-                        host: props.host,
-                        client: props.client,
-                        requestUpdate: props.onRequestUpdate,
-                      });
+                >
+                  <span id="workboard-card-comments-title">
+                    ${t("workboard.badgeComments", { count: String(comments.length) })}
+                  </span>
+                  ${
+                    comments.length
+                      ? html`
+                          <ol>
+                            ${comments.map((comment) => html`<li>${comment.body}</li>`)}
+                          </ol>
+                        `
+                      : nothing
+                  }
+                  <textarea
+                    class="input workboard-comments__input"
+                    aria-labelledby="workboard-card-comments-title"
+                    maxlength="2000"
+                    .value=${state.draftCommentBody}
+                    @input=${(event: InputEvent) => {
+                      state.draftCommentBody = (event.currentTarget as HTMLTextAreaElement).value;
+                      props.onRequestUpdate?.();
                     }}
-                  >
-                    ${icons.plus} ${t("common.create")}
-                  </button>
-                </div>
-              </section>
-            `
-          : nothing}
+                  ></textarea>
+                  <div class="workboard-modal__actions">
+                    <button
+                      class="btn"
+                      type="button"
+                      ?disabled=${state.loading || draftCommentBusy || !state.draftCommentBody.trim()}
+                      @click=${() => {
+                        void addWorkboardCardComment({
+                          host: props.host,
+                          client: props.client,
+                          requestUpdate: props.onRequestUpdate,
+                        });
+                      }}
+                    >
+                      ${icons.plus} ${t("common.create")}
+                    </button>
+                  </div>
+                </section>
+              `
+            : nothing
+        }
         <div class="workboard-modal__actions">
           <button
             class="btn primary"
@@ -1129,19 +1137,21 @@ function renderDependencyBadges(dependencies: WorkboardDependencyState) {
     });
   return html`
     <div class="workboard-dependencies" title=${title}>
-      ${blocked > 0
-        ? html`
-            <span class="workboard-dependency workboard-dependency--blocked">
-              ${icons.alertTriangle}${t("workboard.dependenciesBlocked", {
-                count: String(blocked),
-              })}
-            </span>
-          `
-        : html`
-            <span class="workboard-dependency workboard-dependency--ready">
-              ${t("workboard.dependenciesReady", { count: String(dependencies.parents.length) })}
-            </span>
-          `}
+      ${
+        blocked > 0
+          ? html`
+              <span class="workboard-dependency workboard-dependency--blocked">
+                ${icons.alertTriangle}${t("workboard.dependenciesBlocked", {
+                  count: String(blocked),
+                })}
+              </span>
+            `
+          : html`
+              <span class="workboard-dependency workboard-dependency--ready">
+                ${t("workboard.dependenciesReady", { count: String(dependencies.parents.length) })}
+              </span>
+            `
+      }
     </div>
   `;
 }
@@ -1157,16 +1167,20 @@ function renderDependencyDetailList(dependencies: WorkboardDependencyState) {
         ${dependencies.parents.map(
           (parent) => html`
             <li class=${parent.done ? "is-done" : "is-blocked"}>
-              ${parent.done
-                ? html`<span class="workboard-detail__dependency-spacer"></span>`
-                : icons.alertTriangle}
+              ${
+                parent.done
+                  ? html`<span class="workboard-detail__dependency-spacer"></span>`
+                  : icons.alertTriangle
+              }
               <span>${parent.title}</span>
               <span>
-                ${parent.missing
-                  ? t("workboard.dependencyStatusMissing")
-                  : parent.status
-                    ? formatStatusLabel(parent.status)
-                    : t("workboard.unknownStatus")}
+                ${
+                  parent.missing
+                    ? t("workboard.dependencyStatusMissing")
+                    : parent.status
+                      ? formatStatusLabel(parent.status)
+                      : t("workboard.unknownStatus")
+                }
               </span>
             </li>
           `,
@@ -1191,15 +1205,19 @@ function renderLifecycle(
   return html`
     <div class="workboard-card__lifecycle">
       <span class="workboard-lifecycle workboard-lifecycle--${formatted.tone}">
-        ${taskStatus ??
-        (stale || !execution ? formatted.label : `${execution.engine} ${execution.mode}`)}
+        ${
+          taskStatus ??
+          (stale || !execution ? formatted.label : `${execution.engine} ${execution.mode}`)
+        }
       </span>
       <span class="workboard-card__lifecycle-detail">
-        ${task && taskIsAuthoritative
-          ? taskDetail(task)
-          : stale
-            ? formatted.detail
-            : (session?.displayName ?? session?.label ?? formatted.detail)}
+        ${
+          task && taskIsAuthoritative
+            ? taskDetail(task)
+            : stale
+              ? formatted.detail
+              : (session?.displayName ?? session?.label ?? formatted.detail)
+        }
       </span>
     </div>
   `;
@@ -1226,9 +1244,9 @@ function renderStartExecutionButton(
       : t("workboard.runDefaultAgent");
   return html`
     <button
-      class="btn btn--xs workboard-card__start workboard-card__start--${mode} ${options.iconOnly
-        ? "workboard-card__start--icon"
-        : ""} ${engine ? "" : "workboard-card__start--default"}"
+      class="btn btn--xs workboard-card__start workboard-card__start--${mode} ${
+        options.iconOnly ? "workboard-card__start--icon" : ""
+      } ${engine ? "" : "workboard-card__start--default"}"
       type="button"
       title=${title}
       aria-label=${title}
@@ -1247,15 +1265,19 @@ function renderStartExecutionButton(
         }
       }}
     >
-      ${engine
-        ? html`${renderEngineMark(engine)}${options.iconOnly
-            ? nothing
-            : html`<span
-                >${mode === "autonomous" ? t("workboard.run") : t("workboard.open")}</span
-              >`}`
-        : html`${mode === "autonomous" ? icons.play : icons.penLine}${options.iconOnly
-            ? nothing
-            : html`<span>${t("workboard.start")}</span>`}`}
+      ${
+        engine
+          ? html`${renderEngineMark(engine)}${
+              options.iconOnly
+                ? nothing
+                : html`<span
+                    >${mode === "autonomous" ? t("workboard.run") : t("workboard.open")}</span
+                  >`
+            }`
+          : html`${mode === "autonomous" ? icons.play : icons.penLine}${
+              options.iconOnly ? nothing : html`<span>${t("workboard.start")}</span>`
+            }`
+      }
     </button>
   `;
 }
@@ -1265,10 +1287,12 @@ function renderStartExecutionControls(props: WorkboardProps, card: WorkboardCard
   return html`
     <div class="workboard-card__execution-controls">
       ${renderStartExecutionButton(props, card, null, "autonomous")}
-      ${canModelOverride
-        ? html`${renderStartExecutionButton(props, card, "codex", "autonomous")}
-          ${renderStartExecutionButton(props, card, "claude", "autonomous")}`
-        : nothing}
+      ${
+        canModelOverride
+          ? html`${renderStartExecutionButton(props, card, "codex", "autonomous")}
+            ${renderStartExecutionButton(props, card, "claude", "autonomous")}`
+          : nothing
+      }
       ${renderStartExecutionButton(props, card, "codex", "manual")}
       ${renderStartExecutionButton(props, card, "claude", "manual")}
     </div>
@@ -1380,9 +1404,11 @@ function renderCardDetailsPanel(props: WorkboardProps) {
               ${formatted.label}
             </span>
             <span id=${workboardCardDetailDescriptionId} class="workboard-card__lifecycle-detail">
-              ${task && taskIsAuthoritative
-                ? taskDetail(task)
-                : (lifecycle.session?.displayName ?? formatted.detail)}
+              ${
+                task && taskIsAuthoritative
+                  ? taskDetail(task)
+                  : (lifecycle.session?.displayName ?? formatted.detail)
+              }
             </span>
           </div>
           <div class="workboard-detail__grid">
@@ -1398,14 +1424,16 @@ function renderCardDetailsPanel(props: WorkboardProps) {
           </div>
         </section>
 
-        ${card.notes
-          ? html`
-              <section class="workboard-detail__section">
-                <h3>${t("workboard.fieldNotes")}</h3>
-                <p>${card.notes}</p>
-              </section>
-            `
-          : nothing}
+        ${
+          card.notes
+            ? html`
+                <section class="workboard-detail__section">
+                  <h3>${t("workboard.fieldNotes")}</h3>
+                  <p>${card.notes}</p>
+                </section>
+              `
+            : nothing
+        }
         ${renderDependencyDetailList(dependencies)}
         ${renderDetailList(t("workboard.fieldLabels"), card.labels)}
         ${renderDetailList(
@@ -1448,48 +1476,56 @@ function renderCardDetailsPanel(props: WorkboardProps) {
           t("workboard.detailWorkerLogs"),
           workerLogs.map((entry) => `${entry.level}: ${entry.message}`),
         )}
-        ${workerProtocol
-          ? renderDetailList(t("workboard.detailWorkerProtocol"), [
-              workerProtocol.state,
-              workerProtocol.detail ?? "",
-              workerProtocol.updatedAt
-                ? t("workboard.detailUpdatedValue", { time: formatTime(workerProtocol.updatedAt) })
-                : "",
-            ])
-          : nothing}
-        ${automation
-          ? renderDetailList(t("workboard.detailAutomation"), [
-              automation.tenant
-                ? t("workboard.detailAutomationTenant", { tenant: automation.tenant })
-                : "",
-              automation.boardId
-                ? t("workboard.detailAutomationBoard", { board: automation.boardId })
-                : "",
-              automation.skills?.length
-                ? t("workboard.detailAutomationSkills", { skills: automation.skills.join(", ") })
-                : "",
-              automation.workspace
-                ? t("workboard.detailAutomationWorkspace", {
-                    workspace: [
-                      automation.workspace.kind,
-                      automation.workspace.path,
-                      automation.workspace.branch,
-                    ]
-                      .filter(Boolean)
-                      .join(" "),
-                  })
-                : "",
-              automation.dispatchCount
-                ? t("workboard.badgeDispatches", { count: String(automation.dispatchCount) })
-                : "",
-              automation.lastDispatchAt
-                ? t("workboard.detailUpdatedValue", { time: formatTime(automation.lastDispatchAt) })
-                : "",
-              automation.summary
-                ? t("workboard.detailAutomationSummary", { summary: automation.summary })
-                : "",
-            ])
-          : nothing}
+        ${
+          workerProtocol
+            ? renderDetailList(t("workboard.detailWorkerProtocol"), [
+                workerProtocol.state,
+                workerProtocol.detail ?? "",
+                workerProtocol.updatedAt
+                  ? t("workboard.detailUpdatedValue", {
+                      time: formatTime(workerProtocol.updatedAt),
+                    })
+                  : "",
+              ])
+            : nothing
+        }
+        ${
+          automation
+            ? renderDetailList(t("workboard.detailAutomation"), [
+                automation.tenant
+                  ? t("workboard.detailAutomationTenant", { tenant: automation.tenant })
+                  : "",
+                automation.boardId
+                  ? t("workboard.detailAutomationBoard", { board: automation.boardId })
+                  : "",
+                automation.skills?.length
+                  ? t("workboard.detailAutomationSkills", { skills: automation.skills.join(", ") })
+                  : "",
+                automation.workspace
+                  ? t("workboard.detailAutomationWorkspace", {
+                      workspace: [
+                        automation.workspace.kind,
+                        automation.workspace.path,
+                        automation.workspace.branch,
+                      ]
+                        .filter(Boolean)
+                        .join(" "),
+                    })
+                  : "",
+                automation.dispatchCount
+                  ? t("workboard.badgeDispatches", { count: String(automation.dispatchCount) })
+                  : "",
+                automation.lastDispatchAt
+                  ? t("workboard.detailUpdatedValue", {
+                      time: formatTime(automation.lastDispatchAt),
+                    })
+                  : "",
+                automation.summary
+                  ? t("workboard.detailAutomationSummary", { summary: automation.summary })
+                  : "",
+              ])
+            : nothing
+        }
         ${renderDetailList(
           t("workboard.eventsLabel"),
           events.map((event) => `${formatEventLabel(event)} ${formatTime(event.at)}`),
@@ -1497,56 +1533,62 @@ function renderCardDetailsPanel(props: WorkboardProps) {
 
         <section class="workboard-detail__section">
           <h3>${t("workboard.detailOperatorNotes")}</h3>
-          ${comments.length
-            ? html`
-                <ol class="workboard-detail__list">
-                  ${comments.slice(-6).map((comment) => html`<li>${comment.body}</li>`)}
-                </ol>
-              `
-            : html`<p>${t("workboard.detailNoNotes")}</p>`}
-          ${writable
-            ? html`
-                <textarea
-                  class="input workboard-detail__note"
-                  maxlength="2000"
-                  placeholder=${t("workboard.detailNotePlaceholder")}
-                  .value=${state.detailCommentBody}
-                  @input=${(event: InputEvent) => {
-                    state.detailCommentBody = (event.currentTarget as HTMLTextAreaElement).value;
-                    props.onRequestUpdate?.();
-                  }}
-                ></textarea>
-                <button
-                  class="btn"
-                  type="button"
-                  ?disabled=${busy || !state.detailCommentBody.trim()}
-                  @click=${() =>
-                    addWorkboardCardComment({
-                      host: props.host,
-                      client: props.client,
-                      cardId: card.id,
-                      body: state.detailCommentBody,
-                      requestUpdate: props.onRequestUpdate,
-                    })}
-                >
-                  ${icons.plus} ${t("workboard.detailAddNote")}
-                </button>
-              `
-            : nothing}
+          ${
+            comments.length
+              ? html`
+                  <ol class="workboard-detail__list">
+                    ${comments.slice(-6).map((comment) => html`<li>${comment.body}</li>`)}
+                  </ol>
+                `
+              : html`<p>${t("workboard.detailNoNotes")}</p>`
+          }
+          ${
+            writable
+              ? html`
+                  <textarea
+                    class="input workboard-detail__note"
+                    maxlength="2000"
+                    placeholder=${t("workboard.detailNotePlaceholder")}
+                    .value=${state.detailCommentBody}
+                    @input=${(event: InputEvent) => {
+                      state.detailCommentBody = (event.currentTarget as HTMLTextAreaElement).value;
+                      props.onRequestUpdate?.();
+                    }}
+                  ></textarea>
+                  <button
+                    class="btn"
+                    type="button"
+                    ?disabled=${busy || !state.detailCommentBody.trim()}
+                    @click=${() =>
+                      addWorkboardCardComment({
+                        host: props.host,
+                        client: props.client,
+                        cardId: card.id,
+                        body: state.detailCommentBody,
+                        requestUpdate: props.onRequestUpdate,
+                      })}
+                  >
+                    ${icons.plus} ${t("workboard.detailAddNote")}
+                  </button>
+                `
+              : nothing
+          }
         </section>
 
         <div class="workboard-detail__actions">
-          ${linkedSessionKey
-            ? html`
-                <button
-                  class="btn"
-                  type="button"
-                  @click=${() => props.onOpenSession(linkedSessionKey)}
-                >
-                  ${icons.messageSquare} ${t("workboard.openSession")}
-                </button>
-              `
-            : nothing}
+          ${
+            linkedSessionKey
+              ? html`
+                  <button
+                    class="btn"
+                    type="button"
+                    @click=${() => props.onOpenSession(linkedSessionKey)}
+                  >
+                    ${icons.messageSquare} ${t("workboard.openSession")}
+                  </button>
+                `
+              : nothing
+          }
           ${showStartControls ? renderStartExecutionControls(props, card) : nothing}
         </div>
       </div>
@@ -1599,9 +1641,9 @@ function renderCard(props: WorkboardProps, card: WorkboardCard) {
   const dependencies = getWorkboardDependencyState(card, state.cards);
   return html`
     <article
-      class="workboard-card priority-${card.priority} ${busy
-        ? "workboard-card--busy"
-        : ""} ${archived ? "workboard-card--archived" : ""} workboard-card--openable"
+      class="workboard-card priority-${card.priority} ${
+        busy ? "workboard-card--busy" : ""
+      } ${archived ? "workboard-card--archived" : ""} workboard-card--openable"
       role="button"
       tabindex="0"
       title=${t("workboard.viewDetails")}
@@ -1644,65 +1686,75 @@ function renderCard(props: WorkboardProps, card: WorkboardCard) {
         <div class="workboard-card__chips">
           <span class="workboard-card__priority">${card.priority}</span>
           ${renderAgentChip(props, card)}
-          ${archived
-            ? html`<span class="workboard-card__archived">${t("workboard.archived")}</span>`
-            : nothing}
+          ${
+            archived
+              ? html`<span class="workboard-card__archived">${t("workboard.archived")}</span>`
+              : nothing
+          }
           ${live ? html`<span class="workboard-live">${t("workboard.live")}</span>` : nothing}
           ${syncing ? html`<span class="workboard-live">${t("common.saving")}</span>` : nothing}
         </div>
         <div class="workboard-card__quick-actions">
-          ${showStartControls
-            ? renderStartExecutionButton(props, card, null, "autonomous", { iconOnly: true })
-            : nothing}
-          ${writable && !archived
-            ? html`
-                <button
-                  class="btn btn--icon workboard-card__icon"
-                  type="button"
-                  title=${t("workboard.editCard")}
-                  aria-label=${t("workboard.editCard")}
-                  aria-haspopup="dialog"
-                  @click=${(event: MouseEvent) => {
-                    rememberWorkboardReturnFocus(event.currentTarget);
-                    openEditModal(state, card);
-                    props.onRequestUpdate?.();
-                  }}
-                >
-                  ${icons.edit}
-                </button>
-              `
-            : nothing}
-          ${writable
-            ? html`
-                <button
-                  class="btn btn--icon workboard-card__icon"
-                  type="button"
-                  title=${archived ? t("workboard.unarchiveCard") : t("workboard.archiveCard")}
-                  aria-label=${archived ? t("workboard.unarchiveCard") : t("workboard.archiveCard")}
-                  ?disabled=${busy}
-                  @click=${() =>
-                    archiveWorkboardCard({
-                      host: props.host,
-                      client: props.client,
-                      cardId: card.id,
-                      archived: !archived,
-                      requestUpdate: props.onRequestUpdate,
-                    })}
-                >
-                  ${archived ? icons.archiveRestore : icons.archive}
-                </button>
-              `
-            : nothing}
+          ${
+            showStartControls
+              ? renderStartExecutionButton(props, card, null, "autonomous", { iconOnly: true })
+              : nothing
+          }
+          ${
+            writable && !archived
+              ? html`
+                  <button
+                    class="btn btn--icon workboard-card__icon"
+                    type="button"
+                    title=${t("workboard.editCard")}
+                    aria-label=${t("workboard.editCard")}
+                    aria-haspopup="dialog"
+                    @click=${(event: MouseEvent) => {
+                      rememberWorkboardReturnFocus(event.currentTarget);
+                      openEditModal(state, card);
+                      props.onRequestUpdate?.();
+                    }}
+                  >
+                    ${icons.edit}
+                  </button>
+                `
+              : nothing
+          }
+          ${
+            writable
+              ? html`
+                  <button
+                    class="btn btn--icon workboard-card__icon"
+                    type="button"
+                    title=${archived ? t("workboard.unarchiveCard") : t("workboard.archiveCard")}
+                    aria-label=${archived ? t("workboard.unarchiveCard") : t("workboard.archiveCard")}
+                    ?disabled=${busy}
+                    @click=${() =>
+                      archiveWorkboardCard({
+                        host: props.host,
+                        client: props.client,
+                        cardId: card.id,
+                        archived: !archived,
+                        requestUpdate: props.onRequestUpdate,
+                      })}
+                  >
+                    ${archived ? icons.archiveRestore : icons.archive}
+                  </button>
+                `
+              : nothing
+          }
         </div>
       </div>
       <h3>${card.title}</h3>
       ${card.notes ? html`<p>${card.notes}</p>` : nothing}
       ${renderLifecycle(card, props.sessions, task)} ${renderDependencyBadges(dependencies)}
-      ${card.labels.length
-        ? html`<div class="workboard-labels">
-            ${card.labels.map((label) => html`<span>${label}</span>`)}
-          </div>`
-        : nothing}
+      ${
+        card.labels.length
+          ? html`<div class="workboard-labels">
+              ${card.labels.map((label) => html`<span>${label}</span>`)}
+            </div>`
+          : nothing
+      }
       ${renderCompactBadges(card, task)}
       <div class="workboard-card__meta">
         <span>${linkedSessionKey ?? t("workboard.noLinkedSession")}</span>
@@ -1725,74 +1777,82 @@ function renderCard(props: WorkboardProps, card: WorkboardCard) {
         >
           ${icons.panelRightOpen}
         </button>
-        ${linkedSessionKey
-          ? html`
-              <button
-                class="btn btn--icon workboard-card__icon"
-                title=${t("workboard.openSession")}
-                @click=${() => props.onOpenSession(linkedSessionKey)}
-              >
-                ${icons.messageSquare}
-              </button>
-              ${writable && live
-                ? html`
-                    <button
-                      class="btn btn--icon workboard-card__icon"
-                      title=${t("workboard.stopSession")}
-                      ?disabled=${busy || !props.connected}
-                      @click=${() =>
-                        stopWorkboardCard({
-                          host: props.host,
-                          client: props.client,
-                          card,
-                          requestUpdate: props.onRequestUpdate,
-                        })}
-                    >
-                      ${icons.stop}
-                    </button>
-                  `
-                : nothing}
-            `
-          : nothing}
-        ${!linkedSessionKey && writable && activeTask
-          ? html`
-              <button
-                class="btn btn--icon workboard-card__icon"
-                title=${t("workboard.stopSession")}
-                ?disabled=${busy || !props.connected}
-                @click=${() =>
-                  stopWorkboardCard({
-                    host: props.host,
-                    client: props.client,
-                    card,
-                    requestUpdate: props.onRequestUpdate,
-                  })}
-              >
-                ${icons.stop}
-              </button>
-            `
-          : nothing}
-        ${writable
-          ? html`
-              ${renderCardMoveControl(props, card, busy)}
-              <button
-                class="btn btn--icon workboard-card__icon workboard-card__delete"
-                type="button"
-                title=${t("workboard.deleteCard")}
-                aria-label=${t("workboard.deleteCard")}
-                ?disabled=${busy}
-                @click=${() =>
-                  deleteWorkboardCard({
-                    host: props.host,
-                    client: props.client,
-                    cardId: card.id,
-                    requestUpdate: props.onRequestUpdate,
-                  })}
-              >
-                ${icons.trash}
-              </button>
-            `
-          : nothing}
+        ${
+          linkedSessionKey
+            ? html`
+                <button
+                  class="btn btn--icon workboard-card__icon"
+                  title=${t("workboard.openSession")}
+                  @click=${() => props.onOpenSession(linkedSessionKey)}
+                >
+                  ${icons.messageSquare}
+                </button>
+                ${
+                  writable && live
+                    ? html`
+                        <button
+                          class="btn btn--icon workboard-card__icon"
+                          title=${t("workboard.stopSession")}
+                          ?disabled=${busy || !props.connected}
+                          @click=${() =>
+                            stopWorkboardCard({
+                              host: props.host,
+                              client: props.client,
+                              card,
+                              requestUpdate: props.onRequestUpdate,
+                            })}
+                        >
+                          ${icons.stop}
+                        </button>
+                      `
+                    : nothing
+                }
+              `
+            : nothing
+        }
+        ${
+          !linkedSessionKey && writable && activeTask
+            ? html`
+                <button
+                  class="btn btn--icon workboard-card__icon"
+                  title=${t("workboard.stopSession")}
+                  ?disabled=${busy || !props.connected}
+                  @click=${() =>
+                    stopWorkboardCard({
+                      host: props.host,
+                      client: props.client,
+                      card,
+                      requestUpdate: props.onRequestUpdate,
+                    })}
+                >
+                  ${icons.stop}
+                </button>
+              `
+            : nothing
+        }
+        ${
+          writable
+            ? html`
+                ${renderCardMoveControl(props, card, busy)}
+                <button
+                  class="btn btn--icon workboard-card__icon workboard-card__delete"
+                  type="button"
+                  title=${t("workboard.deleteCard")}
+                  aria-label=${t("workboard.deleteCard")}
+                  ?disabled=${busy}
+                  @click=${() =>
+                    deleteWorkboardCard({
+                      host: props.host,
+                      client: props.client,
+                      cardId: card.id,
+                      requestUpdate: props.onRequestUpdate,
+                    })}
+                >
+                  ${icons.trash}
+                </button>
+              `
+            : nothing
+        }
       </div>
     </article>
   `;
@@ -1803,9 +1863,9 @@ function renderColumn(props: WorkboardProps, status: WorkboardStatus, cards: Wor
   const writable = canMutate(props);
   return html`
     <section
-      class="workboard-column workboard-column--${status} ${state.draggedCardId
-        ? "workboard-column--drop"
-        : ""}"
+      class="workboard-column workboard-column--${status} ${
+        state.draggedCardId ? "workboard-column--drop" : ""
+      }"
       @dragover=${(event: DragEvent) => {
         if (writable && state.draggedCardId) {
           event.preventDefault();
@@ -1835,9 +1895,11 @@ function renderColumn(props: WorkboardProps, status: WorkboardStatus, cards: Wor
         <span>${cards.length}</span>
       </div>
       <div class="workboard-column__cards">
-        ${cards.length
-          ? cards.map((card) => renderCard(props, card))
-          : html`<div class="workboard-empty">${t("workboard.emptyColumn")}</div>`}
+        ${
+          cards.length
+            ? cards.map((card) => renderCard(props, card))
+            : html`<div class="workboard-empty">${t("workboard.emptyColumn")}</div>`
+        }
       </div>
     </section>
   `;
@@ -1933,9 +1995,9 @@ export function renderWorkboard(props: WorkboardProps) {
             <button
               class="btn workboard-archive-toggle ${state.showArchived ? "active" : ""}"
               type="button"
-              title=${state.showArchived
-                ? t("workboard.hideArchived")
-                : t("workboard.showArchived")}
+              title=${
+                state.showArchived ? t("workboard.hideArchived") : t("workboard.showArchived")
+              }
               aria-pressed=${state.showArchived}
               @click=${() => {
                 state.showArchived = !state.showArchived;
@@ -1943,9 +2005,11 @@ export function renderWorkboard(props: WorkboardProps) {
               }}
             >
               ${state.showArchived ? icons.eye : icons.eyeOff}
-              ${state.showArchived
-                ? t("workboard.hideArchivedShort")
-                : t("workboard.showArchivedShort")}
+              ${
+                state.showArchived
+                  ? t("workboard.hideArchivedShort")
+                  : t("workboard.showArchivedShort")
+              }
             </button>
             <div class="workboard-layout-toggle" role="group" aria-label=${t("workboard.layout")}>
               <button
@@ -1992,43 +2056,47 @@ export function renderWorkboard(props: WorkboardProps) {
             >
               ${state.loading ? t("common.refreshing") : t("common.refresh")}
             </button>
-            ${writable
-              ? html`
-                  <button
-                    class="btn"
-                    type="button"
-                    title=${t("workboard.dispatch")}
-                    ?disabled=${state.loading}
-                    @click=${() =>
-                      dispatchWorkboard({
-                        host: props.host,
-                        client: props.client,
-                        requestUpdate: props.onRequestUpdate,
-                      })}
-                  >
-                    ${icons.zap} ${t("workboard.dispatch")}
-                  </button>
-                `
-              : nothing}
-            ${writable
-              ? html`
-                  <button
-                    class="btn primary"
-                    type="button"
-                    title=${t("workboard.newCard")}
-                    aria-haspopup="dialog"
-                    aria-expanded=${state.draftOpen ? "true" : "false"}
-                    aria-controls=${workboardCardModalId}
-                    @click=${(event: MouseEvent) => {
-                      rememberWorkboardReturnFocus(event.currentTarget);
-                      openCreateModal(state);
-                      props.onRequestUpdate?.();
-                    }}
-                  >
-                    ${icons.plus} ${t("workboard.newCard")}
-                  </button>
-                `
-              : nothing}
+            ${
+              writable
+                ? html`
+                    <button
+                      class="btn"
+                      type="button"
+                      title=${t("workboard.dispatch")}
+                      ?disabled=${state.loading}
+                      @click=${() =>
+                        dispatchWorkboard({
+                          host: props.host,
+                          client: props.client,
+                          requestUpdate: props.onRequestUpdate,
+                        })}
+                    >
+                      ${icons.zap} ${t("workboard.dispatch")}
+                    </button>
+                  `
+                : nothing
+            }
+            ${
+              writable
+                ? html`
+                    <button
+                      class="btn primary"
+                      type="button"
+                      title=${t("workboard.newCard")}
+                      aria-haspopup="dialog"
+                      aria-expanded=${state.draftOpen ? "true" : "false"}
+                      aria-controls=${workboardCardModalId}
+                      @click=${(event: MouseEvent) => {
+                        rememberWorkboardReturnFocus(event.currentTarget);
+                        openCreateModal(state);
+                        props.onRequestUpdate?.();
+                      }}
+                    >
+                      ${icons.plus} ${t("workboard.newCard")}
+                    </button>
+                  `
+                : nothing
+            }
           </div>
         </div>
         ${state.error ? html`<div class="callout danger">${state.error}</div>` : nothing}

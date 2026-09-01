@@ -30,11 +30,13 @@ export function renderOverviewEventLog(props: OverviewEventLogProps) {
             <div class="ov-event-log-entry">
               <span class="ov-event-log-ts">${formatTimeMs(entry.ts, undefined, "")}</span>
               <span class="ov-event-log-name">${entry.event}</span>
-              ${entry.payload
-                ? html`<span class="ov-event-log-payload muted"
-                    >${formatEventPayload(entry.payload).slice(0, 120)}</span
-                  >`
-                : nothing}
+              ${
+                entry.payload
+                  ? html`<span class="ov-event-log-payload muted"
+                      >${formatEventPayload(entry.payload).slice(0, 120)}</span
+                    >`
+                  : nothing
+              }
             </div>
           `,
         )}

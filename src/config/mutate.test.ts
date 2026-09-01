@@ -28,13 +28,11 @@ const ioMocks = vi.hoisted(() => ({
   writeConfigFile: vi.fn(),
 }));
 const validationMocks = vi.hoisted(() => ({
-  validateConfigObjectWithPlugins: vi.fn(
-    (config: OpenClawConfig): MockValidationResult => ({
-      ok: true,
-      config,
-      warnings: [],
-    }),
-  ),
+  validateConfigObjectWithPlugins: vi.fn((config: OpenClawConfig): MockValidationResult => ({
+    ok: true,
+    config,
+    warnings: [],
+  })),
 }));
 
 vi.mock("./io.js", async () => ({

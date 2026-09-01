@@ -147,21 +147,23 @@ export function renderSkillWorkshop(props: SkillWorkshopProps) {
         ${keyed(props.mode, html`<div class="sw-view__pane">${body}</div>`)}
       </div>
     </section>
-    ${preview && selected
-      ? html`
-          <openclaw-file-preview-modal
-            .files=${selected.supportFiles}
-            .activePath=${preview.path}
-            .query=${props.filePreviewQuery}
-            .contextLabel=${`in ${selected.slug}`}
-            @file-preview-query-change=${(event: CustomEvent<string>) =>
-              props.onFilePreviewQueryChange(event.detail)}
-            @file-preview-select=${(event: CustomEvent<string>) =>
-              props.onPreviewFile(selected.key, event.detail)}
-            @file-preview-close=${props.onClosePreview}
-          ></openclaw-file-preview-modal>
-        `
-      : nothing}
+    ${
+      preview && selected
+        ? html`
+            <openclaw-file-preview-modal
+              .files=${selected.supportFiles}
+              .activePath=${preview.path}
+              .query=${props.filePreviewQuery}
+              .contextLabel=${`in ${selected.slug}`}
+              @file-preview-query-change=${(event: CustomEvent<string>) =>
+                props.onFilePreviewQueryChange(event.detail)}
+              @file-preview-select=${(event: CustomEvent<string>) =>
+                props.onPreviewFile(selected.key, event.detail)}
+              @file-preview-close=${props.onClosePreview}
+            ></openclaw-file-preview-modal>
+          `
+        : nothing
+    }
     ${revisionProposal ? renderRevisionDialog(props, revisionProposal) : nothing}
   `;
 }
@@ -208,14 +210,16 @@ function renderRevisionDialog(props: SkillWorkshopProps, proposal: SkillWorkshop
           @input=${(event: Event) =>
             props.onRevisionDraftChange((event.target as HTMLTextAreaElement).value ?? "")}
         ></textarea>
-        ${busy
-          ? html`
-              <div class="sw-revision-dialog__status" role="status">
-                <span class="sw-revision-dialog__status-dot" aria-hidden="true"></span>
-                <span>Preparing revision handoff</span>
-              </div>
-            `
-          : nothing}
+        ${
+          busy
+            ? html`
+                <div class="sw-revision-dialog__status" role="status">
+                  <span class="sw-revision-dialog__status-dot" aria-hidden="true"></span>
+                  <span>Preparing revision handoff</span>
+                </div>
+              `
+            : nothing
+        }
         <div class="sw-revision-dialog__actions">
           <button
             class="sw-btn sw-btn--ghost"
@@ -346,16 +350,18 @@ function renderQueue(
         />
       </div>
       <div class="sw-queue__body">
-        ${total === 0
-          ? html`<div class="sw-queue__empty">${queueEmptyText(props)}</div>`
-          : groups.map(
-              (group) => html`
-                <div class="sw-queue__group">
-                  ${group.label} <span class="sw-queue__group-pill">${group.items.length}</span>
-                </div>
-                ${group.items.map((proposal) => renderRow(props, proposal, selected))}
-              `,
-            )}
+        ${
+          total === 0
+            ? html`<div class="sw-queue__empty">${queueEmptyText(props)}</div>`
+            : groups.map(
+                (group) => html`
+                  <div class="sw-queue__group">
+                    ${group.label} <span class="sw-queue__group-pill">${group.items.length}</span>
+                  </div>
+                  ${group.items.map((proposal) => renderRow(props, proposal, selected))}
+                `,
+              )
+        }
       </div>
     </aside>
   `;
@@ -402,14 +408,16 @@ function renderDetail(props: SkillWorkshopProps, proposal: SkillWorkshopProposal
             <span>·</span>
             <span>v${proposal.version}</span>
             <span>·</span>
-            ${proposal.supportFiles.length > 0
-              ? html`<button
-                  class="sw-detail__meta-link"
-                  @click=${() => props.onPreviewFile(proposal.key, proposal.supportFiles[0].path)}
-                >
-                  ${proposal.supportFiles.length} support files
-                </button>`
-              : html`<span>0 support files</span>`}
+            ${
+              proposal.supportFiles.length > 0
+                ? html`<button
+                    class="sw-detail__meta-link"
+                    @click=${() => props.onPreviewFile(proposal.key, proposal.supportFiles[0].path)}
+                  >
+                    ${proposal.supportFiles.length} support files
+                  </button>`
+                : html`<span>0 support files</span>`
+            }
           </div>
         </div>
         <div class="sw-detail__nav">
@@ -421,34 +429,39 @@ function renderDetail(props: SkillWorkshopProps, proposal: SkillWorkshopProposal
       <div class="sw-detail__body">
         <div class="sw-body-card">
           <h1>${proposal.slug}</h1>
-          ${detailLoading
-            ? html`<p class="sw-muted">Loading proposal…</p>`
-            : renderProposalBody(proposal.body)}
+          ${
+            detailLoading
+              ? html`<p class="sw-muted">Loading proposal…</p>`
+              : renderProposalBody(proposal.body)
+          }
         </div>
 
-        ${proposal.supportFiles.length > 0
-          ? html`
-              <div class="sw-section" style="margin-top: 18px;">
-                <h3 class="sw-section__label">Support files</h3>
-                <div class="sw-files">
-                  ${proposal.supportFiles.map(
-                    (file) => html`
-                      <button
-                        class="sw-file"
-                        @click=${() => props.onPreviewFile(proposal.key, file.path)}
-                      >
-                        <span>📄</span>
-                        <span class="sw-file__name">${file.path}</span>
-                        <span class="sw-file__size"
-                          >${file.size} <span class="sw-file__hint">· click to preview</span></span
+        ${
+          proposal.supportFiles.length > 0
+            ? html`
+                <div class="sw-section" style="margin-top: 18px;">
+                  <h3 class="sw-section__label">Support files</h3>
+                  <div class="sw-files">
+                    ${proposal.supportFiles.map(
+                      (file) => html`
+                        <button
+                          class="sw-file"
+                          @click=${() => props.onPreviewFile(proposal.key, file.path)}
                         >
-                      </button>
-                    `,
-                  )}
+                          <span>📄</span>
+                          <span class="sw-file__name">${file.path}</span>
+                          <span class="sw-file__size"
+                            >${file.size}
+                            <span class="sw-file__hint">· click to preview</span></span
+                          >
+                        </button>
+                      `,
+                    )}
+                  </div>
                 </div>
-              </div>
-            `
-          : nothing}
+              `
+            : nothing
+        }
       </div>
 
       ${props.actionNotice?.key === proposal.key ? renderActionNotice(props.actionNotice) : nothing}
@@ -674,29 +687,31 @@ function renderToday(
       <div class="sw-today__head">
         <div class="sw-today__date">${dateLine}</div>
         <h1 class="sw-today__h1">${pending.length} proposals waiting</h1>
-        ${pending.length === 0
-          ? html`<div class="sw-today__sub">Browse what's already applied.</div>`
-          : nothing}
-        ${pending.length > 0
-          ? html`
-              <div class="sw-today__progress">
-                <span>${heroIndex + 1} of ${total}</span>
-                <div class="sw-today__dots">
-                  ${pending.map(
-                    (_, i) => html`
-                      <span
-                        class="sw-today__dot ${i < heroIndex
-                          ? "is-done"
-                          : i === heroIndex
-                            ? "is-now"
-                            : ""}"
-                      ></span>
-                    `,
-                  )}
+        ${
+          pending.length === 0
+            ? html`<div class="sw-today__sub">Browse what's already applied.</div>`
+            : nothing
+        }
+        ${
+          pending.length > 0
+            ? html`
+                <div class="sw-today__progress">
+                  <span>${heroIndex + 1} of ${total}</span>
+                  <div class="sw-today__dots">
+                    ${pending.map(
+                      (_, i) => html`
+                        <span
+                          class="sw-today__dot ${
+                            i < heroIndex ? "is-done" : i === heroIndex ? "is-now" : ""
+                          }"
+                        ></span>
+                      `,
+                    )}
+                  </div>
                 </div>
-              </div>
-            `
-          : nothing}
+              `
+            : nothing
+        }
       </div>
 
       <article class="sw-today__hero">
@@ -713,111 +728,119 @@ function renderToday(
           <span class="sw-today__avatar">v${hero.version}</span>
           <span>
             Drafted by <strong>${assistantName}</strong> · ${ageLabel}.
-            ${hero.supportFiles.length > 0
-              ? html`
-                  <button
-                    class="sw-today__files-link"
-                    @click=${() => props.onPreviewFile(hero.key, hero.supportFiles[0].path)}
-                  >
-                    ${hero.supportFiles.length}
-                    ${hero.supportFiles.length === 1 ? "support file" : "support files"}
-                  </button>
-                  come with it.
-                `
-              : nothing}
+            ${
+              hero.supportFiles.length > 0
+                ? html`
+                    <button
+                      class="sw-today__files-link"
+                      @click=${() => props.onPreviewFile(hero.key, hero.supportFiles[0].path)}
+                    >
+                      ${hero.supportFiles.length}
+                      ${hero.supportFiles.length === 1 ? "support file" : "support files"}
+                    </button>
+                    come with it.
+                  `
+                : nothing
+            }
           </span>
         </div>
 
-        ${isPending
-          ? html`
-              <div class="sw-today__actions" aria-busy=${busy ? "true" : "false"}>
-                <button
-                  class="sw-today__big sw-today__big--primary ${busy === "apply" ? "is-busy" : ""}"
-                  ?disabled=${disabled}
-                  @click=${() => props.onApply(hero.key)}
-                >
-                  ${busy === "apply" ? "Applying…" : "Use it"}
-                  <span class="sw-today__big-sub">Add to your skills</span>
-                </button>
-                <button
-                  class="sw-today__big sw-today__big--tweak ${busy === "revise" ? "is-busy" : ""}"
-                  ?disabled=${disabled}
-                  @click=${() => props.onRevise(hero.key)}
-                >
-                  ${busy === "revise" ? "Opening…" : "Tweak it"}
-                  <span class="sw-today__big-sub">Ask the agent to change something</span>
-                </button>
-                <button
-                  class="sw-today__big sw-today__big--skip ${busy === "reject" ? "is-busy" : ""}"
-                  ?disabled=${disabled}
-                  @click=${() => props.onReject(hero.key)}
-                >
-                  ${busy === "reject" ? "Skipping…" : "Skip"}
-                  <span class="sw-today__big-sub">Not for me</span>
-                </button>
-              </div>
-            `
-          : nothing}
+        ${
+          isPending
+            ? html`
+                <div class="sw-today__actions" aria-busy=${busy ? "true" : "false"}>
+                  <button
+                    class="sw-today__big sw-today__big--primary ${busy === "apply" ? "is-busy" : ""}"
+                    ?disabled=${disabled}
+                    @click=${() => props.onApply(hero.key)}
+                  >
+                    ${busy === "apply" ? "Applying…" : "Use it"}
+                    <span class="sw-today__big-sub">Add to your skills</span>
+                  </button>
+                  <button
+                    class="sw-today__big sw-today__big--tweak ${busy === "revise" ? "is-busy" : ""}"
+                    ?disabled=${disabled}
+                    @click=${() => props.onRevise(hero.key)}
+                  >
+                    ${busy === "revise" ? "Opening…" : "Tweak it"}
+                    <span class="sw-today__big-sub">Ask the agent to change something</span>
+                  </button>
+                  <button
+                    class="sw-today__big sw-today__big--skip ${busy === "reject" ? "is-busy" : ""}"
+                    ?disabled=${disabled}
+                    @click=${() => props.onReject(hero.key)}
+                  >
+                    ${busy === "reject" ? "Skipping…" : "Skip"}
+                    <span class="sw-today__big-sub">Not for me</span>
+                  </button>
+                </div>
+              `
+            : nothing
+        }
         ${props.actionNotice?.key === hero.key ? renderActionNotice(props.actionNotice) : nothing}
       </article>
 
-      ${upNext.length > 0
-        ? html`
-            <section class="sw-today__section">
-              <header class="sw-today__section-head">
-                <h3>Up next · ${pending.length - 1} more waiting</h3>
-                <button class="sw-today__link" @click=${() => props.onModeChange("board")}>
-                  See all proposals →
-                </button>
-              </header>
-              <div class="sw-today__upnext">
-                ${upNext.map(
-                  (p) => html`
-                    <button class="sw-today__mini" @click=${() => props.onSelect(p.key)}>
-                      <div class="sw-today__mini-name">${p.slug}</div>
-                      <div class="sw-today__mini-desc">${p.oneLine}</div>
-                      <div class="sw-today__mini-meta">${p.ageLabel}</div>
-                    </button>
-                  `,
-                )}
-              </div>
-            </section>
-          `
-        : nothing}
-      ${applied.length > 0
-        ? html`
-            <section class="sw-today__section">
-              <header class="sw-today__section-head">
-                <h3>Your collection · ${props.counts.applied} in use</h3>
-                <button
-                  class="sw-today__link sw-today__link--muted"
-                  @click=${() => props.onModeChange("board")}
-                >
-                  Manage →
-                </button>
-              </header>
-              <div class="sw-today__applied">
-                ${applied.map(
-                  (p) => html`
-                    <button
-                      class="sw-today__applied-row"
-                      @click=${() => {
-                        props.onSelect(p.key);
-                        props.onModeChange("board");
-                      }}
-                    >
-                      <span class="sw-today__check">✓</span>
-                      <span class="sw-today__applied-name">
-                        <strong>${p.slug}</strong> — ${p.oneLine}
-                      </span>
-                      <span class="sw-today__applied-when">${p.ageLabel}</span>
-                    </button>
-                  `,
-                )}
-              </div>
-            </section>
-          `
-        : nothing}
+      ${
+        upNext.length > 0
+          ? html`
+              <section class="sw-today__section">
+                <header class="sw-today__section-head">
+                  <h3>Up next · ${pending.length - 1} more waiting</h3>
+                  <button class="sw-today__link" @click=${() => props.onModeChange("board")}>
+                    See all proposals →
+                  </button>
+                </header>
+                <div class="sw-today__upnext">
+                  ${upNext.map(
+                    (p) => html`
+                      <button class="sw-today__mini" @click=${() => props.onSelect(p.key)}>
+                        <div class="sw-today__mini-name">${p.slug}</div>
+                        <div class="sw-today__mini-desc">${p.oneLine}</div>
+                        <div class="sw-today__mini-meta">${p.ageLabel}</div>
+                      </button>
+                    `,
+                  )}
+                </div>
+              </section>
+            `
+          : nothing
+      }
+      ${
+        applied.length > 0
+          ? html`
+              <section class="sw-today__section">
+                <header class="sw-today__section-head">
+                  <h3>Your collection · ${props.counts.applied} in use</h3>
+                  <button
+                    class="sw-today__link sw-today__link--muted"
+                    @click=${() => props.onModeChange("board")}
+                  >
+                    Manage →
+                  </button>
+                </header>
+                <div class="sw-today__applied">
+                  ${applied.map(
+                    (p) => html`
+                      <button
+                        class="sw-today__applied-row"
+                        @click=${() => {
+                          props.onSelect(p.key);
+                          props.onModeChange("board");
+                        }}
+                      >
+                        <span class="sw-today__check">✓</span>
+                        <span class="sw-today__applied-name">
+                          <strong>${p.slug}</strong> — ${p.oneLine}
+                        </span>
+                        <span class="sw-today__applied-when">${p.ageLabel}</span>
+                      </button>
+                    `,
+                  )}
+                </div>
+              </section>
+            `
+          : nothing
+      }
     </div>
   `;
 }
