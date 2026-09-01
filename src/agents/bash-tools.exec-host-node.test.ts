@@ -80,15 +80,13 @@ const listNodesMock = vi.hoisted(() => vi.fn());
 const parsePreparedSystemRunPayloadMock = vi.hoisted(() => vi.fn());
 const commandRequiresSecurityAuditSuppressionApprovalMock = vi.hoisted(() => vi.fn(() => false));
 const evaluateShellAllowlistMock = vi.hoisted(() =>
-  vi.fn(
-    (_raw?: ShellAllowlistMockParams): MockAllowlistResult => ({
-      allowlistMatches: [],
-      analysisOk: true,
-      allowlistSatisfied: false,
-      segments: [{ resolution: null, argv: ["bun", "./script.ts"] }],
-      segmentAllowlistEntries: [],
-    }),
-  ),
+  vi.fn((_raw?: ShellAllowlistMockParams): MockAllowlistResult => ({
+    allowlistMatches: [],
+    analysisOk: true,
+    allowlistSatisfied: false,
+    segments: [{ resolution: null, argv: ["bun", "./script.ts"] }],
+    segmentAllowlistEntries: [],
+  })),
 );
 const hasNodeCommandAllowAlwaysMarkerMock = vi.hoisted(() =>
   vi.fn((raw: unknown): boolean =>
@@ -104,18 +102,16 @@ const resolveAllowAlwaysPatternCoverageMock = vi.hoisted(() =>
   })),
 );
 const resolveExecApprovalsFromFileMock = vi.hoisted(() =>
-  vi.fn(
-    (): MockExecApprovalsResolved => ({
-      allowlist: [],
-      file: { version: 1, agents: {} },
-      agent: {
-        security: "full",
-        ask: "off",
-        askFallback: "deny",
-        autoAllowSkills: false,
-      },
-    }),
-  ),
+  vi.fn((): MockExecApprovalsResolved => ({
+    allowlist: [],
+    file: { version: 1, agents: {} },
+    agent: {
+      security: "full",
+      ask: "off",
+      askFallback: "deny",
+      autoAllowSkills: false,
+    },
+  })),
 );
 const requiresExecApprovalMock = vi.hoisted(() =>
   vi.fn((_raw?: RequiresExecApprovalMockParams) => true),

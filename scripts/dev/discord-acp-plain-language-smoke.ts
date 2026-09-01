@@ -1037,14 +1037,12 @@ async function main(): Promise<number> {
     writeStdoutLine(usage());
     return 0;
   }
-  const result = await run().catch(
-    (err: unknown): FailureResult => ({
-      ok: false,
-      stage: "unexpected",
-      smokeId: "n/a",
-      error: safeErrorMessage(err),
-    }),
-  );
+  const result = await run().catch((err: unknown): FailureResult => ({
+    ok: false,
+    stage: "unexpected",
+    smokeId: "n/a",
+    error: safeErrorMessage(err),
+  }));
   printOutput({
     json: hasFlag("--json"),
     payload: result,

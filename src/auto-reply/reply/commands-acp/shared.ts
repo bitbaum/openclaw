@@ -195,7 +195,7 @@ export function parseSpawnInput(
   let label: string | undefined;
   let rawAgentId: string | undefined;
 
-  for (let i = 0; i < normalizedTokens.length; ) {
+  for (let i = 0; i < normalizedTokens.length;) {
     const token = normalizedTokens[i] ?? "";
 
     const modeOption = readOptionValue({ tokens: normalizedTokens, index: i, flag: "--mode" });
@@ -332,7 +332,7 @@ export function parseSteerInput(
   let sessionToken: string | undefined;
   const instructionTokens: string[] = [];
 
-  for (let i = 0; i < normalizedTokens.length; ) {
+  for (let i = 0; i < normalizedTokens.length;) {
     const sessionOption = readOptionValue({
       tokens: normalizedTokens,
       index: i,

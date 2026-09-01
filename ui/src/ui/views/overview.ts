@@ -115,14 +115,16 @@ export function renderOverview(props: OverviewProps) {
     return html`
       <div class="muted" style="margin-top: 8px">
         ${title}
-        ${copy.summaryKey
-          ? html`<div style="margin-top: 6px">${t(copy.summaryKey)}</div>`
-          : nothing}
+        ${
+          copy.summaryKey ? html`<div style="margin-top: 6px">${t(copy.summaryKey)}</div>` : nothing
+        }
         <div style="margin-top: 6px">
-          ${pairingState.requestId
-            ? html`<span class="mono">openclaw devices approve ${pairingState.requestId}</span
-                ><br />`
-            : nothing}
+          ${
+            pairingState.requestId
+              ? html`<span class="mono">openclaw devices approve ${pairingState.requestId}</span
+                  ><br />`
+              : nothing
+          }
           <span class="mono">openclaw devices list</span>
         </div>
         <div style="margin-top: 6px; font-size: 12px;">${t("overview.pairing.mobileHint")}</div>
@@ -275,68 +277,74 @@ export function renderOverview(props: OverviewProps) {
               placeholder="ws://100.x.y.z:18789"
             />
           </label>
-          ${isTrustedProxy
-            ? ""
-            : html`
-                <label class="field">
-                  <span>${t("overview.access.token")}</span>
-                  <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
-                    <input
-                      type=${props.showGatewayToken ? "text" : "password"}
-                      autocomplete="off"
-                      style="flex: 1 1 0%; min-width: 0; box-sizing: border-box;"
-                      .value=${props.settings.token}
-                      @input=${(e: Event) => {
-                        const v = (e.target as HTMLInputElement).value;
-                        props.onSettingsChange({ ...props.settings, token: v });
-                      }}
-                      placeholder="OPENCLAW_GATEWAY_TOKEN"
-                    />
-                    <button
-                      type="button"
-                      class="btn btn--icon ${props.showGatewayToken ? "active" : ""}"
-                      style="flex-shrink: 0; width: 36px; height: 36px; box-sizing: border-box;"
-                      title=${props.showGatewayToken
-                        ? t("overview.access.hideToken")
-                        : t("overview.access.showToken")}
-                      aria-label=${t("overview.access.toggleTokenVisibility")}
-                      aria-pressed=${props.showGatewayToken}
-                      @click=${props.onToggleGatewayTokenVisibility}
-                    >
-                      ${props.showGatewayToken ? icons.eye : icons.eyeOff}
-                    </button>
-                  </div>
-                </label>
-                <label class="field">
-                  <span>${t("overview.access.password")}</span>
-                  <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
-                    <input
-                      type=${props.showGatewayPassword ? "text" : "password"}
-                      autocomplete="off"
-                      style="flex: 1 1 0%; min-width: 0; width: 100%; box-sizing: border-box;"
-                      .value=${props.password}
-                      @input=${(e: Event) => {
-                        const v = (e.target as HTMLInputElement).value;
-                        props.onPasswordChange(v);
-                      }}
-                      placeholder=${t("overview.access.passwordPlaceholder")}
-                    />
-                    <button
-                      type="button"
-                      class="btn btn--icon ${props.showGatewayPassword ? "active" : ""}"
-                      style="flex-shrink: 0; width: 36px; height: 36px; box-sizing: border-box;"
-                      title=${props.showGatewayPassword
-                        ? t("overview.access.hidePassword")
-                        : t("overview.access.showPassword")}
-                      aria-label=${t("overview.access.togglePasswordVisibility")}
-                      aria-pressed=${props.showGatewayPassword}
-                      @click=${props.onToggleGatewayPasswordVisibility}
-                    >
-                      ${props.showGatewayPassword ? icons.eye : icons.eyeOff}
-                    </button>
-                  </div>
-                </label>
-              `}
+          ${
+            isTrustedProxy
+              ? ""
+              : html`
+                  <label class="field">
+                    <span>${t("overview.access.token")}</span>
+                    <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+                      <input
+                        type=${props.showGatewayToken ? "text" : "password"}
+                        autocomplete="off"
+                        style="flex: 1 1 0%; min-width: 0; box-sizing: border-box;"
+                        .value=${props.settings.token}
+                        @input=${(e: Event) => {
+                          const v = (e.target as HTMLInputElement).value;
+                          props.onSettingsChange({ ...props.settings, token: v });
+                        }}
+                        placeholder="OPENCLAW_GATEWAY_TOKEN"
+                      />
+                      <button
+                        type="button"
+                        class="btn btn--icon ${props.showGatewayToken ? "active" : ""}"
+                        style="flex-shrink: 0; width: 36px; height: 36px; box-sizing: border-box;"
+                        title=${
+                          props.showGatewayToken
+                            ? t("overview.access.hideToken")
+                            : t("overview.access.showToken")
+                        }
+                        aria-label=${t("overview.access.toggleTokenVisibility")}
+                        aria-pressed=${props.showGatewayToken}
+                        @click=${props.onToggleGatewayTokenVisibility}
+                      >
+                        ${props.showGatewayToken ? icons.eye : icons.eyeOff}
+                      </button>
+                    </div>
+                  </label>
+                  <label class="field">
+                    <span>${t("overview.access.password")}</span>
+                    <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+                      <input
+                        type=${props.showGatewayPassword ? "text" : "password"}
+                        autocomplete="off"
+                        style="flex: 1 1 0%; min-width: 0; width: 100%; box-sizing: border-box;"
+                        .value=${props.password}
+                        @input=${(e: Event) => {
+                          const v = (e.target as HTMLInputElement).value;
+                          props.onPasswordChange(v);
+                        }}
+                        placeholder=${t("overview.access.passwordPlaceholder")}
+                      />
+                      <button
+                        type="button"
+                        class="btn btn--icon ${props.showGatewayPassword ? "active" : ""}"
+                        style="flex-shrink: 0; width: 36px; height: 36px; box-sizing: border-box;"
+                        title=${
+                          props.showGatewayPassword
+                            ? t("overview.access.hidePassword")
+                            : t("overview.access.showPassword")
+                        }
+                        aria-label=${t("overview.access.togglePasswordVisibility")}
+                        aria-pressed=${props.showGatewayPassword}
+                        @click=${props.onToggleGatewayPasswordVisibility}
+                      >
+                        ${props.showGatewayPassword ? icons.eye : icons.eyeOff}
+                      </button>
+                    </div>
+                  </label>
+                `
+          }
           <label class="field">
             <span>${t("overview.access.sessionKey")}</span>
             <input
@@ -370,43 +378,46 @@ export function renderOverview(props: OverviewProps) {
           <button class="btn" @click=${() => props.onConnect()}>${t("common.connect")}</button>
           <button class="btn" @click=${() => props.onRefresh()}>${t("common.refresh")}</button>
           <span class="muted"
-            >${isTrustedProxy
-              ? t("overview.access.trustedProxy")
-              : t("overview.access.connectHint")}</span
+            >${
+              isTrustedProxy ? t("overview.access.trustedProxy") : t("overview.access.connectHint")
+            }</span
           >
         </div>
-        ${!props.connected
-          ? html`
-              <div class="login-gate__help" style="margin-top: 16px;">
-                <div class="login-gate__help-title">${t("overview.connection.title")}</div>
-                <ol class="login-gate__steps">
-                  <li>
-                    ${t("overview.connection.step1")}
-                    ${renderConnectCommand("openclaw gateway run")}
-                  </li>
-                  <li>
-                    ${t("overview.connection.step2")} ${renderConnectCommand("openclaw dashboard")}
-                  </li>
-                  <li>${t("overview.connection.step3")}</li>
-                  <li>
-                    ${t("overview.connection.step4")}<code
-                      >openclaw doctor --generate-gateway-token</code
+        ${
+          !props.connected
+            ? html`
+                <div class="login-gate__help" style="margin-top: 16px;">
+                  <div class="login-gate__help-title">${t("overview.connection.title")}</div>
+                  <ol class="login-gate__steps">
+                    <li>
+                      ${t("overview.connection.step1")}
+                      ${renderConnectCommand("openclaw gateway run")}
+                    </li>
+                    <li>
+                      ${t("overview.connection.step2")}
+                      ${renderConnectCommand("openclaw dashboard")}
+                    </li>
+                    <li>${t("overview.connection.step3")}</li>
+                    <li>
+                      ${t("overview.connection.step4")}<code
+                        >openclaw doctor --generate-gateway-token</code
+                      >
+                    </li>
+                  </ol>
+                  <div class="login-gate__docs">
+                    ${t("overview.connection.docsHint")}
+                    <a
+                      class="session-link"
+                      href="https://docs.openclaw.ai/web/dashboard"
+                      target="_blank"
+                      rel="noreferrer"
+                      >${t("overview.connection.docsLink")}</a
                     >
-                  </li>
-                </ol>
-                <div class="login-gate__docs">
-                  ${t("overview.connection.docsHint")}
-                  <a
-                    class="session-link"
-                    href="https://docs.openclaw.ai/web/dashboard"
-                    target="_blank"
-                    rel="noreferrer"
-                    >${t("overview.connection.docsLink")}</a
-                  >
+                  </div>
                 </div>
-              </div>
-            `
-          : nothing}
+              `
+            : nothing
+        }
       </div>
 
       <div class="card">
@@ -430,23 +441,27 @@ export function renderOverview(props: OverviewProps) {
           <div class="stat">
             <div class="stat-label">${t("overview.snapshot.lastChannelsRefresh")}</div>
             <div class="stat-value">
-              ${props.lastChannelsRefresh
-                ? formatRelativeTimestamp(props.lastChannelsRefresh)
-                : t("common.na")}
+              ${
+                props.lastChannelsRefresh
+                  ? formatRelativeTimestamp(props.lastChannelsRefresh)
+                  : t("common.na")
+              }
             </div>
           </div>
         </div>
-        ${props.lastError
-          ? html`<div class="callout danger" style="margin-top: 14px;">
-              <div>${props.lastError}</div>
-              ${pairingHint ?? ""} ${authHint ?? ""} ${insecureContextHint ?? ""}
-              ${queryTokenHint ?? ""}
-            </div>`
-          : html`
-              <div class="callout" style="margin-top: 14px">
-                ${t("overview.snapshot.channelsHint")}
-              </div>
-            `}
+        ${
+          props.lastError
+            ? html`<div class="callout danger" style="margin-top: 14px;">
+                <div>${props.lastError}</div>
+                ${pairingHint ?? ""} ${authHint ?? ""} ${insecureContextHint ?? ""}
+                ${queryTokenHint ?? ""}
+              </div>`
+            : html`
+                <div class="callout" style="margin-top: 14px">
+                  ${t("overview.snapshot.channelsHint")}
+                </div>
+              `
+        }
       </div>
     </section>
 

@@ -140,9 +140,10 @@ const {
       (...args: unknown[]) => Promise<string | undefined>
     >(async () => undefined),
     transcribeAudioFileMock: vi.fn(async () => ({ text: "hello from voice" })),
-    textToSpeechStreamMock: vi.fn(
-      async (): Promise<unknown> => ({ success: false, error: "stream unavailable" }),
-    ),
+    textToSpeechStreamMock: vi.fn(async (): Promise<unknown> => ({
+      success: false,
+      error: "stream unavailable",
+    })),
     textToSpeechMock: vi.fn(async () => ({ success: true, audioPath: "/tmp/voice.mp3" })),
     logVerboseMock: vi.fn(),
     resolveConfiguredRealtimeVoiceProviderMock: vi.fn(() => ({
@@ -306,9 +307,8 @@ function createClient() {
     rest: {
       get: vi.fn(),
     },
-    fetchChannel: vi.fn(
-      async (channelId: string): Promise<VoiceChannelInfo | null> =>
-        createVoiceChannelInfo(channelId),
+    fetchChannel: vi.fn(async (channelId: string): Promise<VoiceChannelInfo | null> =>
+      createVoiceChannelInfo(channelId),
     ),
     fetchGuild: vi.fn(async (guildId: string) => ({
       id: guildId,

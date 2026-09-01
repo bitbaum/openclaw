@@ -458,7 +458,7 @@ export function chunkMarkdown(
         const coarse = line.slice(start, start + maxChars);
         if (estimateStringChars(coarse) > maxChars) {
           const fineStep = Math.max(1, chunking.tokens);
-          for (let j = 0; j < coarse.length; ) {
+          for (let j = 0; j < coarse.length;) {
             let end = Math.min(j + fineStep, coarse.length);
             // Avoid splitting inside a UTF-16 surrogate pair (CJK Extension B+).
             if (end < coarse.length) {

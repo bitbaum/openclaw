@@ -570,11 +570,13 @@ function renderChatSessionPicker(params: {
           }
         }}
       >
-        ${compact
-          ? html`<span class="chat-controls__session-trigger-compact-icon" aria-hidden="true">
-              ${icons.messageSquare}
-            </span>`
-          : ""}
+        ${
+          compact
+            ? html`<span class="chat-controls__session-trigger-compact-icon" aria-hidden="true">
+                ${icons.messageSquare}
+              </span>`
+            : ""
+        }
         <span class="chat-controls__session-trigger-label">${selectedSessionLabel}</span>
         <span class="chat-controls__session-trigger-icon" aria-hidden="true">
           ${icons.chevronDown}
@@ -656,32 +658,40 @@ function renderChatSessionPickerPopover(
         >
           ${icons.search}
         </button>
-        ${hasQuery
-          ? html`<button
-              class="btn btn--ghost btn--icon chat-session-picker__icon-button"
-              data-chat-session-search-clear="true"
-              type="button"
-              title=${t("chat.selectors.clearSessionSearch")}
-              aria-label=${t("chat.selectors.clearSessionSearch")}
-              ?disabled=${controlsDisabled}
-              @click=${() => clearChatSessionPickerSearch(state)}
-            >
-              ${icons.x}
-            </button>`
-          : ""}
+        ${
+          hasQuery
+            ? html`<button
+                class="btn btn--ghost btn--icon chat-session-picker__icon-button"
+                data-chat-session-search-clear="true"
+                type="button"
+                title=${t("chat.selectors.clearSessionSearch")}
+                aria-label=${t("chat.selectors.clearSessionSearch")}
+                ?disabled=${controlsDisabled}
+                @click=${() => clearChatSessionPickerSearch(state)}
+              >
+                ${icons.x}
+              </button>`
+            : ""
+        }
       </div>
-      ${state.chatSessionPickerError
-        ? html`<div class="chat-session-picker__status" role="alert">
-            ${state.chatSessionPickerError}
-          </div>`
-        : ""}
+      ${
+        state.chatSessionPickerError
+          ? html`<div class="chat-session-picker__status" role="alert">
+              ${state.chatSessionPickerError}
+            </div>`
+          : ""
+      }
       <div class="chat-session-picker__list" role="listbox">
-        ${state.chatSessionPickerLoading && pickerRows.length === 0
-          ? html`<div class="chat-session-picker__status">${t("common.loading")}</div>`
-          : ""}
-        ${!state.chatSessionPickerLoading && pickerRows.length === 0
-          ? html`<div class="chat-session-picker__status">${t("sessionsView.noSessions")}</div>`
-          : ""}
+        ${
+          state.chatSessionPickerLoading && pickerRows.length === 0
+            ? html`<div class="chat-session-picker__status">${t("common.loading")}</div>`
+            : ""
+        }
+        ${
+          !state.chatSessionPickerLoading && pickerRows.length === 0
+            ? html`<div class="chat-session-picker__status">${t("sessionsView.noSessions")}</div>`
+            : ""
+        }
         ${repeat(
           pickerRows,
           (entry) => entry.row.key,
@@ -691,9 +701,9 @@ function renderChatSessionPickerPopover(
             const selected = row.key === state.sessionKey;
             return html`
               <button
-                class="chat-session-picker__option ${selected
-                  ? "chat-session-picker__option--selected"
-                  : ""}"
+                class="chat-session-picker__option ${
+                  selected ? "chat-session-picker__option--selected" : ""
+                }"
                 data-chat-session-picker-option="true"
                 data-session-key=${row.key}
                 role="option"
@@ -711,11 +721,13 @@ function renderChatSessionPickerPopover(
                   <span class="chat-session-picker__option-label">${label}</span>
                   ${meta ? html`<span class="chat-session-picker__option-meta">${meta}</span>` : ""}
                 </span>
-                ${selected
-                  ? html`<span class="chat-session-picker__option-check" aria-hidden="true">
-                      ${icons.check}
-                    </span>`
-                  : ""}
+                ${
+                  selected
+                    ? html`<span class="chat-session-picker__option-check" aria-hidden="true">
+                        ${icons.check}
+                      </span>`
+                    : ""
+                }
               </button>
             `;
           },
@@ -723,17 +735,19 @@ function renderChatSessionPickerPopover(
       </div>
       <div class="chat-session-picker__footer">
         <span class="chat-session-picker__count">${countLabel}</span>
-        ${loadMoreOffset !== null
-          ? html`<button
-              class="btn btn--ghost btn--sm"
-              data-chat-session-load-more="true"
-              type="button"
-              ?disabled=${loadMoreDisabled}
-              @click=${() => void loadMoreChatSessionPickerResults(state)}
-            >
-              ${t("chat.selectors.loadMoreSessions")}
-            </button>`
-          : ""}
+        ${
+          loadMoreOffset !== null
+            ? html`<button
+                class="btn btn--ghost btn--sm"
+                data-chat-session-load-more="true"
+                type="button"
+                ?disabled=${loadMoreDisabled}
+                @click=${() => void loadMoreChatSessionPickerResults(state)}
+              >
+                ${t("chat.selectors.loadMoreSessions")}
+              </button>`
+            : ""
+        }
       </div>
     </div>
   `;
@@ -1137,9 +1151,9 @@ function renderChatModelReasoningSelect(params: {
   return html`
     <details class="chat-controls__session chat-controls__inline-select chat-controls__model">
       <summary
-        class="chat-controls__inline-select-trigger ${disabled
-          ? "chat-controls__inline-select-trigger--disabled"
-          : ""}"
+        class="chat-controls__inline-select-trigger ${
+          disabled ? "chat-controls__inline-select-trigger--disabled" : ""
+        }"
         data-chat-model-select="true"
         data-chat-thinking-select="true"
         data-chat-select-value=${selectedModelValue}
@@ -1173,9 +1187,9 @@ function renderChatModelReasoningSelect(params: {
               return html`
                 <div class="chat-controls__combined-model">
                   <button
-                    class="chat-controls__inline-select-option chat-controls__combined-model-option ${selected
-                      ? "chat-controls__inline-select-option--selected"
-                      : ""}"
+                    class="chat-controls__inline-select-option chat-controls__combined-model-option ${
+                      selected ? "chat-controls__inline-select-option--selected" : ""
+                    }"
                     data-chat-model-option=${entry.value}
                     role="option"
                     aria-selected=${selected ? "true" : "false"}
@@ -1193,14 +1207,16 @@ function renderChatModelReasoningSelect(params: {
                     }}
                   >
                     <span>${formatCombinedPickerModelOptionLabel(entry, selected)}</span>
-                    ${selected
-                      ? html`<span
-                          class="chat-controls__inline-select-check chat-controls__combined-model-arrow"
-                          aria-hidden="true"
-                        >
-                          ${icons.chevronDown}
-                        </span>`
-                      : ""}
+                    ${
+                      selected
+                        ? html`<span
+                            class="chat-controls__inline-select-check chat-controls__combined-model-arrow"
+                            aria-hidden="true"
+                          >
+                            ${icons.chevronDown}
+                          </span>`
+                        : ""
+                    }
                   </button>
                 </div>
               `;
@@ -1221,9 +1237,9 @@ function renderChatModelReasoningSelect(params: {
                 const thinkingSelected = thinking.value === selectedThinkingValue;
                 return html`
                   <button
-                    class="chat-controls__reasoning-option ${thinkingSelected
-                      ? "chat-controls__reasoning-option--selected"
-                      : ""}"
+                    class="chat-controls__reasoning-option ${
+                      thinkingSelected ? "chat-controls__reasoning-option--selected" : ""
+                    }"
                     data-chat-thinking-option=${thinking.value}
                     role="option"
                     aria-selected=${thinkingSelected ? "true" : "false"}
@@ -1242,64 +1258,70 @@ function renderChatModelReasoningSelect(params: {
                     }}
                   >
                     <span>${formatCombinedPickerThinkingOptionLabel(thinking)}</span>
-                    ${thinkingSelected
-                      ? html`<span class="chat-controls__inline-select-check" aria-hidden="true">
-                          ${icons.check}
-                        </span>`
-                      : ""}
+                    ${
+                      thinkingSelected
+                        ? html`<span class="chat-controls__inline-select-check" aria-hidden="true">
+                            ${icons.check}
+                          </span>`
+                        : ""
+                    }
                   </button>
                 `;
               },
             )}
           </div>
-          ${fastMode.supported
-            ? html`
-                <div class="chat-controls__inline-select-section-label">Speed</div>
-                <div class="chat-controls__reasoning-options" role="listbox">
-                  ${repeat(
-                    fastMode.options,
-                    (speed) => speed.value,
-                    (speed) => {
-                      const speedValue = speed.value as "" | "on" | "off";
-                      const speedSelected = speedValue === fastMode.currentOverride;
-                      return html`
-                        <button
-                          class="chat-controls__reasoning-option ${speedSelected
-                            ? "chat-controls__reasoning-option--selected"
-                            : ""}"
-                          data-chat-speed-option=${speed.value}
-                          role="option"
-                          aria-selected=${speedSelected ? "true" : "false"}
-                          type="button"
-                          ?disabled=${fastMode.disabled}
-                          @click=${async (event: MouseEvent) => {
-                            event.stopPropagation();
-                            if (fastMode.disabled) {
-                              event.preventDefault();
-                              return;
+          ${
+            fastMode.supported
+              ? html`
+                  <div class="chat-controls__inline-select-section-label">Speed</div>
+                  <div class="chat-controls__reasoning-options" role="listbox">
+                    ${repeat(
+                      fastMode.options,
+                      (speed) => speed.value,
+                      (speed) => {
+                        const speedValue = speed.value as "" | "on" | "off";
+                        const speedSelected = speedValue === fastMode.currentOverride;
+                        return html`
+                          <button
+                            class="chat-controls__reasoning-option ${
+                              speedSelected ? "chat-controls__reasoning-option--selected" : ""
+                            }"
+                            data-chat-speed-option=${speed.value}
+                            role="option"
+                            aria-selected=${speedSelected ? "true" : "false"}
+                            type="button"
+                            ?disabled=${fastMode.disabled}
+                            @click=${async (event: MouseEvent) => {
+                              event.stopPropagation();
+                              if (fastMode.disabled) {
+                                event.preventDefault();
+                                return;
+                              }
+                              (event.currentTarget as HTMLElement)
+                                .closest("details")
+                                ?.removeAttribute("open");
+                              await onFastModeSelect(speedValue);
+                            }}
+                          >
+                            <span>${speed.label}</span>
+                            ${
+                              speedSelected
+                                ? html`<span
+                                    class="chat-controls__inline-select-check"
+                                    aria-hidden="true"
+                                  >
+                                    ${icons.check}
+                                  </span>`
+                                : ""
                             }
-                            (event.currentTarget as HTMLElement)
-                              .closest("details")
-                              ?.removeAttribute("open");
-                            await onFastModeSelect(speedValue);
-                          }}
-                        >
-                          <span>${speed.label}</span>
-                          ${speedSelected
-                            ? html`<span
-                                class="chat-controls__inline-select-check"
-                                aria-hidden="true"
-                              >
-                                ${icons.check}
-                              </span>`
-                            : ""}
-                        </button>
-                      `;
-                    },
-                  )}
-                </div>
-              `
-            : ""}
+                          </button>
+                        `;
+                      },
+                    )}
+                  </div>
+                `
+              : ""
+          }
         </div>
       </div>
     </details>

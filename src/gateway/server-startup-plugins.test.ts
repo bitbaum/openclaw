@@ -20,65 +20,61 @@ const loadGatewayStartupPlugins = vi.hoisted(() =>
     gatewayMethods: ["ping"],
   })),
 );
-const pluginManifestRegistry = vi.hoisted(
-  (): PluginManifestRegistry => ({
-    plugins: [
-      {
-        id: "telegram",
-        origin: "bundled",
-        rootDir: "/package/dist/extensions/telegram",
-        source: "/package/dist/extensions/telegram/index.js",
-        manifestPath: "/package/dist/extensions/telegram/package.json",
-        channels: ["telegram"],
-        providers: [],
-        cliBackends: [],
-        skills: [],
-        hooks: [],
-      },
-    ],
-    diagnostics: [],
-  }),
-);
-const pluginMetadataSnapshot = vi.hoisted(
-  (): PluginMetadataSnapshot => ({
-    policyHash: "policy",
-    index: {
-      version: 1,
-      hostContractVersion: "test",
-      compatRegistryVersion: "test",
-      migrationVersion: 1,
-      policyHash: "policy",
-      generatedAtMs: 0,
-      installRecords: {},
-      plugins: [],
-      diagnostics: [],
+const pluginManifestRegistry = vi.hoisted((): PluginManifestRegistry => ({
+  plugins: [
+    {
+      id: "telegram",
+      origin: "bundled",
+      rootDir: "/package/dist/extensions/telegram",
+      source: "/package/dist/extensions/telegram/index.js",
+      manifestPath: "/package/dist/extensions/telegram/package.json",
+      channels: ["telegram"],
+      providers: [],
+      cliBackends: [],
+      skills: [],
+      hooks: [],
     },
-    registryDiagnostics: [],
-    manifestRegistry: pluginManifestRegistry,
+  ],
+  diagnostics: [],
+}));
+const pluginMetadataSnapshot = vi.hoisted((): PluginMetadataSnapshot => ({
+  policyHash: "policy",
+  index: {
+    version: 1,
+    hostContractVersion: "test",
+    compatRegistryVersion: "test",
+    migrationVersion: 1,
+    policyHash: "policy",
+    generatedAtMs: 0,
+    installRecords: {},
     plugins: [],
     diagnostics: [],
-    byPluginId: new Map(),
-    normalizePluginId: (pluginId) => pluginId,
-    owners: {
-      channels: new Map(),
-      channelConfigs: new Map(),
-      providers: new Map(),
-      modelCatalogProviders: new Map(),
-      cliBackends: new Map(),
-      setupProviders: new Map(),
-      commandAliases: new Map(),
-      contracts: new Map(),
-    },
-    metrics: {
-      registrySnapshotMs: 0,
-      manifestRegistryMs: 0,
-      ownerMapsMs: 0,
-      totalMs: 0,
-      indexPluginCount: 0,
-      manifestPluginCount: 0,
-    },
-  }),
-);
+  },
+  registryDiagnostics: [],
+  manifestRegistry: pluginManifestRegistry,
+  plugins: [],
+  diagnostics: [],
+  byPluginId: new Map(),
+  normalizePluginId: (pluginId) => pluginId,
+  owners: {
+    channels: new Map(),
+    channelConfigs: new Map(),
+    providers: new Map(),
+    modelCatalogProviders: new Map(),
+    cliBackends: new Map(),
+    setupProviders: new Map(),
+    commandAliases: new Map(),
+    contracts: new Map(),
+  },
+  metrics: {
+    registrySnapshotMs: 0,
+    manifestRegistryMs: 0,
+    ownerMapsMs: 0,
+    totalMs: 0,
+    indexPluginCount: 0,
+    manifestPluginCount: 0,
+  },
+}));
 const pluginLookUpTableMetrics = vi.hoisted(() => ({
   registrySnapshotMs: 0,
   manifestRegistryMs: 0,

@@ -22,9 +22,10 @@ const mocks = vi.hoisted(() => ({
     return { version: 1, profiles: {} };
   }),
   listProfilesForProvider: vi.fn((): string[] => []),
-  removeProviderAuthProfilesWithLock: vi.fn(
-    async (): Promise<AuthProfileStore | null> => ({ version: 1, profiles: {} }),
-  ),
+  removeProviderAuthProfilesWithLock: vi.fn(async (): Promise<AuthProfileStore | null> => ({
+    version: 1,
+    profiles: {},
+  })),
   resolvePersistedAuthProfileOwnerAgentDir: vi.fn(
     (params: { agentDir?: string }) => params.agentDir,
   ),
@@ -32,9 +33,12 @@ const mocks = vi.hoisted(() => ({
   refreshActiveSecretsRuntimeSnapshot: vi.fn(async () => false),
   clearCurrentProviderAuthState: vi.fn(),
   warmCurrentProviderAuthStateOffMainThread: vi.fn(async (_cfg: unknown) => {}),
-  buildAuthHealthSummary: vi.fn(
-    (): AuthHealthSummary => ({ now: 0, warnAfterMs: 0, profiles: [], providers: [] }),
-  ),
+  buildAuthHealthSummary: vi.fn((): AuthHealthSummary => ({
+    now: 0,
+    warnAfterMs: 0,
+    profiles: [],
+    providers: [],
+  })),
   loadProviderUsageSummary: vi.fn(async (): Promise<UsageSummary> => emptyUsageSummary()),
 }));
 

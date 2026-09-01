@@ -958,13 +958,13 @@ async function loadRuntimeParityMockToolCalls(
     if (!Array.isArray(payload)) {
       return null;
     }
-    const requests = payload.filter(isMessageRecord).map(
-      (entry): RuntimeParityMockRequestSnapshot => ({
+    const requests = payload
+      .filter(isMessageRecord)
+      .map((entry): RuntimeParityMockRequestSnapshot => ({
         plannedToolName: readNonEmptyString(entry.plannedToolName),
         plannedToolArgs: entry.plannedToolArgs ?? null,
         toolOutput: readNonEmptyString(entry.toolOutput) ?? "",
-      }),
-    );
+      }));
     return resolveToolCallOrderFromMockRequests(requests);
   } catch {
     return null;

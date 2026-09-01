@@ -43,16 +43,18 @@ export class DashboardHeader extends LitElement {
           >
             OpenClaw
           </a>
-          ${agentLabel
-            ? html`
-                <span class="dashboard-header__breadcrumb-segment">
-                  <span class="dashboard-header__breadcrumb-sep">›</span>
-                  <span class="dashboard-header__breadcrumb-context" title=${agentLabel}>
-                    ${agentLabel}
+          ${
+            agentLabel
+              ? html`
+                  <span class="dashboard-header__breadcrumb-segment">
+                    <span class="dashboard-header__breadcrumb-sep">›</span>
+                    <span class="dashboard-header__breadcrumb-context" title=${agentLabel}>
+                      ${agentLabel}
+                    </span>
                   </span>
-                </span>
-              `
-            : nothing}
+                `
+              : nothing
+          }
           <span class="dashboard-header__breadcrumb-sep">›</span>
           <span class="dashboard-header__breadcrumb-current">${label}</span>
         </div>

@@ -705,21 +705,19 @@ describe("applyAuthChoice", () => {
           id: "setup-token",
           label: "Anthropic setup-token",
           kind: "token",
-          run: vi.fn(
-            async (): Promise<ProviderAuthResult> => ({
-              profiles: [
-                {
-                  profileId: "anthropic:default",
-                  credential: {
-                    type: "token",
-                    provider: "anthropic",
-                    token: `sk-ant-oat01-${"a".repeat(80)}`,
-                  },
+          run: vi.fn(async (): Promise<ProviderAuthResult> => ({
+            profiles: [
+              {
+                profileId: "anthropic:default",
+                credential: {
+                  type: "token",
+                  provider: "anthropic",
+                  token: `sk-ant-oat01-${"a".repeat(80)}`,
                 },
-              ],
-              defaultModel: "anthropic/claude-sonnet-4-6",
-            }),
-          ),
+              },
+            ],
+            defaultModel: "anthropic/claude-sonnet-4-6",
+          })),
         },
       }),
     ]);
@@ -1093,21 +1091,19 @@ describe("applyAuthChoice", () => {
         id: "github",
         label: "GitHub Copilot",
         kind: "token",
-        run: vi.fn(
-          async (): Promise<ProviderAuthResult> => ({
-            profiles: [
-              {
-                profileId: "github-copilot:github",
-                credential: {
-                  type: "token",
-                  provider: "github-copilot",
-                  token: "gho_copilot_test",
-                },
+        run: vi.fn(async (): Promise<ProviderAuthResult> => ({
+          profiles: [
+            {
+              profileId: "github-copilot:github",
+              credential: {
+                type: "token",
+                provider: "github-copilot",
+                token: "gho_copilot_test",
               },
-            ],
-            defaultModel: "github-copilot/claude-opus-4.7",
-          }),
-        ),
+            },
+          ],
+          defaultModel: "github-copilot/claude-opus-4.7",
+        })),
       },
     });
     const manifestSpy = vi

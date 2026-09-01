@@ -42,51 +42,61 @@ export function renderChatQueue(props: ChatQueueProps) {
               class="chat-queue__item ${item.kind === "steered" ? "chat-queue__item--steered" : ""}"
             >
               <div class="chat-queue__main">
-                ${item.kind === "steered"
-                  ? html`<span class="chat-queue__badge">Steered</span>`
-                  : nothing}
+                ${
+                  item.kind === "steered"
+                    ? html`<span class="chat-queue__badge">Steered</span>`
+                    : nothing
+                }
                 ${stateLabel ? html`<span class="chat-queue__badge">${stateLabel}</span>` : nothing}
                 <div class="chat-queue__text">
-                  ${item.text ||
-                  (item.attachments?.length ? `Image (${item.attachments.length})` : "")}
+                  ${
+                    item.text ||
+                    (item.attachments?.length ? `Image (${item.attachments.length})` : "")
+                  }
                 </div>
-                ${item.sendError
-                  ? html`<div class="chat-queue__error">${item.sendError}</div>`
-                  : nothing}
+                ${
+                  item.sendError
+                    ? html`<div class="chat-queue__error">${item.sendError}</div>`
+                    : nothing
+                }
               </div>
               <div class="chat-queue__actions">
-                ${item.sendState === "failed" && props.onQueueRetry
-                  ? html`
-                      <button
-                        class="btn chat-queue__retry"
-                        type="button"
-                        title=${t("chat.queue.retrySend")}
-                        aria-label=${t("chat.queue.retryQueuedMessage")}
-                        @click=${() => props.onQueueRetry?.(item.id)}
-                      >
-                        ${icons.refresh}
-                        <span>${t("chat.queue.retry")}</span>
-                      </button>
-                    `
-                  : nothing}
-                ${props.canAbort &&
-                props.onQueueSteer &&
-                item.kind !== "steered" &&
-                !item.sendState &&
-                !item.localCommandName
-                  ? html`
-                      <button
-                        class="btn chat-queue__steer"
-                        type="button"
-                        title="Steer now"
-                        aria-label="Steer queued message"
-                        @click=${() => props.onQueueSteer?.(item.id)}
-                      >
-                        ${icons.cornerDownRight}
-                        <span>Steer</span>
-                      </button>
-                    `
-                  : nothing}
+                ${
+                  item.sendState === "failed" && props.onQueueRetry
+                    ? html`
+                        <button
+                          class="btn chat-queue__retry"
+                          type="button"
+                          title=${t("chat.queue.retrySend")}
+                          aria-label=${t("chat.queue.retryQueuedMessage")}
+                          @click=${() => props.onQueueRetry?.(item.id)}
+                        >
+                          ${icons.refresh}
+                          <span>${t("chat.queue.retry")}</span>
+                        </button>
+                      `
+                    : nothing
+                }
+                ${
+                  props.canAbort &&
+                  props.onQueueSteer &&
+                  item.kind !== "steered" &&
+                  !item.sendState &&
+                  !item.localCommandName
+                    ? html`
+                        <button
+                          class="btn chat-queue__steer"
+                          type="button"
+                          title="Steer now"
+                          aria-label="Steer queued message"
+                          @click=${() => props.onQueueSteer?.(item.id)}
+                        >
+                          ${icons.cornerDownRight}
+                          <span>Steer</span>
+                        </button>
+                      `
+                    : nothing
+                }
                 <button
                   class="btn chat-queue__remove"
                   type="button"

@@ -16,13 +16,11 @@ type PluginSnapshotResult = {
 };
 
 const pluginRegistryMocks = vi.hoisted(() => ({
-  loadPluginRegistrySnapshotWithMetadata: vi.fn(
-    (): PluginSnapshotResult => ({
-      source: "persisted",
-      snapshot: { plugins: [] },
-      diagnostics: [],
-    }),
-  ),
+  loadPluginRegistrySnapshotWithMetadata: vi.fn((): PluginSnapshotResult => ({
+    source: "persisted",
+    snapshot: { plugins: [] },
+    diagnostics: [],
+  })),
 }));
 
 const envCandidateMocks = vi.hoisted(() => ({

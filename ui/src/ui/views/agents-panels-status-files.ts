@@ -251,71 +251,83 @@ export function renderAgentChannels(params: {
         <div class="muted" style="margin-top: 8px;">
           ${t("agents.channels.lastRefresh", { time: lastSuccessLabel })}
         </div>
-        ${params.error
-          ? html`<div class="callout danger" style="margin-top: 12px;">${params.error}</div>`
-          : nothing}
-        ${!params.snapshot
-          ? html`
-              <div class="callout info" style="margin-top: 12px">
-                ${t("agents.channels.loadHint")}
-              </div>
-            `
-          : nothing}
-        ${entries.length === 0
-          ? html` <div class="muted" style="margin-top: 16px">${t("agents.channels.empty")}</div>`
-          : html`
-              <div class="list" style="margin-top: 16px;">
-                ${entries.map((entry) => {
-                  const summary = summarizeChannelAccounts(entry.accounts);
-                  const status = summary.total
-                    ? t("agents.channels.connectedCount", {
-                        connected: String(summary.connected),
-                        total: String(summary.total),
-                      })
-                    : t("agents.channels.noAccounts");
-                  const configLabel = summary.configured
-                    ? t("agents.channels.configuredCount", { count: String(summary.configured) })
-                    : t("agents.channels.notConfigured");
-                  const enabled = summary.total
-                    ? t("agents.channels.enabledCount", { count: String(summary.enabled) })
-                    : t("common.disabled");
-                  const extras = resolveChannelExtrasFromConfig({
-                    configForm: params.configForm,
-                    channelId: entry.id,
-                    fields: CHANNEL_EXTRA_FIELDS,
-                  });
-                  return html`
-                    <div class="list-item">
-                      <div class="list-main">
-                        <div class="list-title">${entry.label}</div>
-                        <div class="list-sub mono">${entry.id}</div>
+        ${
+          params.error
+            ? html`<div class="callout danger" style="margin-top: 12px;">${params.error}</div>`
+            : nothing
+        }
+        ${
+          !params.snapshot
+            ? html`
+                <div class="callout info" style="margin-top: 12px">
+                  ${t("agents.channels.loadHint")}
+                </div>
+              `
+            : nothing
+        }
+        ${
+          entries.length === 0
+            ? html` <div class="muted" style="margin-top: 16px">${t("agents.channels.empty")}</div>`
+            : html`
+                <div class="list" style="margin-top: 16px;">
+                  ${entries.map((entry) => {
+                    const summary = summarizeChannelAccounts(entry.accounts);
+                    const status = summary.total
+                      ? t("agents.channels.connectedCount", {
+                          connected: String(summary.connected),
+                          total: String(summary.total),
+                        })
+                      : t("agents.channels.noAccounts");
+                    const configLabel = summary.configured
+                      ? t("agents.channels.configuredCount", { count: String(summary.configured) })
+                      : t("agents.channels.notConfigured");
+                    const enabled = summary.total
+                      ? t("agents.channels.enabledCount", { count: String(summary.enabled) })
+                      : t("common.disabled");
+                    const extras = resolveChannelExtrasFromConfig({
+                      configForm: params.configForm,
+                      channelId: entry.id,
+                      fields: CHANNEL_EXTRA_FIELDS,
+                    });
+                    return html`
+                      <div class="list-item">
+                        <div class="list-main">
+                          <div class="list-title">${entry.label}</div>
+                          <div class="list-sub mono">${entry.id}</div>
+                        </div>
+                        <div class="list-meta">
+                          <div>${status}</div>
+                          <div>${configLabel}</div>
+                          <div>${enabled}</div>
+                          ${
+                            summary.configured === 0
+                              ? html`
+                                  <div>
+                                    <a
+                                      href="https://docs.openclaw.ai/channels"
+                                      target="_blank"
+                                      rel="noopener"
+                                      style="color: var(--accent); font-size: 12px"
+                                      >${t("agents.channels.setupGuide")}</a
+                                    >
+                                  </div>
+                                `
+                              : nothing
+                          }
+                          ${
+                            extras.length > 0
+                              ? extras.map(
+                                  (extra) => html`<div>${extra.label}: ${extra.value}</div>`,
+                                )
+                              : nothing
+                          }
+                        </div>
                       </div>
-                      <div class="list-meta">
-                        <div>${status}</div>
-                        <div>${configLabel}</div>
-                        <div>${enabled}</div>
-                        ${summary.configured === 0
-                          ? html`
-                              <div>
-                                <a
-                                  href="https://docs.openclaw.ai/channels"
-                                  target="_blank"
-                                  rel="noopener"
-                                  style="color: var(--accent); font-size: 12px"
-                                  >${t("agents.channels.setupGuide")}</a
-                                >
-                              </div>
-                            `
-                          : nothing}
-                        ${extras.length > 0
-                          ? extras.map((extra) => html`<div>${extra.label}: ${extra.value}</div>`)
-                          : nothing}
-                      </div>
-                    </div>
-                  `;
-                })}
-              </div>
-            `}
+                    `;
+                  })}
+                </div>
+              `
+        }
       </section>
     </section>
   `;
@@ -354,11 +366,13 @@ export function renderAgentCron(params: {
           <div class="stat">
             <div class="stat-label">${t("common.enabled")}</div>
             <div class="stat-value">
-              ${params.status
-                ? params.status.enabled
-                  ? t("common.yes")
-                  : t("common.no")
-                : t("common.na")}
+              ${
+                params.status
+                  ? params.status.enabled
+                    ? t("common.yes")
+                    : t("common.no")
+                  : t("common.na")
+              }
             </div>
           </div>
           <div class="stat">
@@ -370,51 +384,57 @@ export function renderAgentCron(params: {
             <div class="stat-value">${formatNextRun(params.status?.nextWakeAtMs ?? null)}</div>
           </div>
         </div>
-        ${params.error
-          ? html`<div class="callout danger" style="margin-top: 12px;">${params.error}</div>`
-          : nothing}
+        ${
+          params.error
+            ? html`<div class="callout danger" style="margin-top: 12px;">${params.error}</div>`
+            : nothing
+        }
       </section>
     </section>
     <section class="card">
       <div class="card-title">${t("agents.cronPanel.agentJobsTitle")}</div>
       <div class="card-sub">${t("agents.cronPanel.agentJobsSubtitle")}</div>
-      ${jobs.length === 0
-        ? html` <div class="muted" style="margin-top: 16px">${t("agents.cronPanel.noJobs")}</div>`
-        : html`
-            <div class="list" style="margin-top: 16px;">
-              ${jobs.map(
-                (job) => html`
-                  <div class="list-item">
-                    <div class="list-main">
-                      <div class="list-title">${job.name}</div>
-                      ${job.description
-                        ? html`<div class="list-sub">${job.description}</div>`
-                        : nothing}
-                      <div class="chip-row" style="margin-top: 6px;">
-                        <span class="chip">${formatCronSchedule(job)}</span>
-                        <span class="chip ${job.enabled ? "chip-ok" : "chip-warn"}">
-                          ${job.enabled ? t("common.enabled") : t("common.disabled")}
-                        </span>
-                        <span class="chip">${job.sessionTarget}</span>
+      ${
+        jobs.length === 0
+          ? html` <div class="muted" style="margin-top: 16px">${t("agents.cronPanel.noJobs")}</div>`
+          : html`
+              <div class="list" style="margin-top: 16px;">
+                ${jobs.map(
+                  (job) => html`
+                    <div class="list-item">
+                      <div class="list-main">
+                        <div class="list-title">${job.name}</div>
+                        ${
+                          job.description
+                            ? html`<div class="list-sub">${job.description}</div>`
+                            : nothing
+                        }
+                        <div class="chip-row" style="margin-top: 6px;">
+                          <span class="chip">${formatCronSchedule(job)}</span>
+                          <span class="chip ${job.enabled ? "chip-ok" : "chip-warn"}">
+                            ${job.enabled ? t("common.enabled") : t("common.disabled")}
+                          </span>
+                          <span class="chip">${job.sessionTarget}</span>
+                        </div>
+                      </div>
+                      <div class="list-meta">
+                        <div class="mono">${formatCronState(job)}</div>
+                        <div class="muted">${formatCronPayload(job)}</div>
+                        <button
+                          class="btn btn--sm"
+                          style="margin-top: 6px;"
+                          ?disabled=${!job.enabled}
+                          @click=${() => params.onRunNow(job.id)}
+                        >
+                          ${t("agents.cronPanel.runNow")}
+                        </button>
                       </div>
                     </div>
-                    <div class="list-meta">
-                      <div class="mono">${formatCronState(job)}</div>
-                      <div class="muted">${formatCronPayload(job)}</div>
-                      <button
-                        class="btn btn--sm"
-                        style="margin-top: 6px;"
-                        ?disabled=${!job.enabled}
-                        @click=${() => params.onRunNow(job.id)}
-                      >
-                        ${t("agents.cronPanel.runNow")}
-                      </button>
-                    </div>
-                  </div>
-                `,
-              )}
-            </div>
-          `}
+                  `,
+                )}
+              </div>
+            `
+      }
     </section>
   `;
 }
@@ -484,216 +504,231 @@ export function renderAgentFiles(params: {
           ${params.agentFilesLoading ? t("common.loading") : t("common.refresh")}
         </button>
       </div>
-      ${list
-        ? html`<div class="muted mono" style="margin-top: 8px;">
-            ${t("agents.files.workspace")}: <span>${list.workspace}</span>
-          </div>`
-        : nothing}
-      ${params.agentFilesError
-        ? html`<div class="callout danger" style="margin-top: 12px;">
-            ${params.agentFilesError}
-          </div>`
-        : nothing}
-      ${!list
-        ? html`
-            <div class="callout info" style="margin-top: 12px">${t("agents.files.loadHint")}</div>
-          `
-        : files.length === 0
-          ? html` <div class="muted" style="margin-top: 16px">${t("agents.files.empty")}</div> `
-          : html`
-              <div class="agent-tabs" style="margin-top: 14px;">
-                ${files.map((file) => {
-                  const isActive = active === file.name;
-                  const label = file.name.replace(/\.md$/i, "");
-                  return html`
-                    <button
-                      class="agent-tab ${isActive ? "active" : ""} ${file.missing
-                        ? "agent-tab--missing"
-                        : ""}"
-                      @click=${() => params.onSelectFile(file.name)}
-                    >
-                      ${label}${file.missing
-                        ? html` <span class="agent-tab-badge">${t("agents.files.missing")}</span> `
-                        : nothing}
-                    </button>
-                  `;
-                })}
-              </div>
-              ${!activeEntry
-                ? html` <div class="muted" style="margin-top: 16px">
-                    ${t("agents.files.selectFile")}
-                  </div>`
-                : html`
-                    <div class="agent-file-header" style="margin-top: 14px;">
-                      <div>
-                        <div class="agent-file-sub mono">${activeEntry.path}</div>
-                      </div>
-                      <div class="agent-file-actions">
-                        <button
-                          class="btn btn--sm"
-                          title=${t("agents.files.previewMarkdownTitle")}
-                          @click=${(e: Event) => {
-                            const btn = e.currentTarget as HTMLElement;
-                            const dialog = btn.closest(".card")?.querySelector("dialog");
-                            if (dialog) {
-                              dialog.showModal();
-                            }
-                          }}
-                        >
-                          ${icons.eye} ${t("agents.files.preview")}
-                        </button>
-                        <button
-                          class="btn btn--sm"
-                          ?disabled=${!isDirty}
-                          @click=${() => params.onFileReset(activeEntry.name)}
-                        >
-                          ${t("common.reset")}
-                        </button>
-                        <button
-                          class="btn btn--sm primary"
-                          ?disabled=${params.agentFileSaving || !isDirty}
-                          @click=${() => params.onFileSave(activeEntry.name)}
-                        >
-                          ${params.agentFileSaving ? t("common.saving") : t("common.save")}
-                        </button>
-                      </div>
-                    </div>
-                    ${activeEntry.missing
-                      ? html`
-                          <div class="callout info" style="margin-top: 10px">
-                            ${t("agents.files.missingHint")}
-                          </div>
-                        `
-                      : nothing}
-                    <label class="field agent-file-field" style="margin-top: 12px;">
-                      <span>${t("agents.files.content")}</span>
-                      <textarea
-                        class="agent-file-textarea"
-                        .value=${draft}
-                        @input=${(e: Event) =>
-                          params.onFileDraftChange(
-                            activeEntry.name,
-                            (e.target as HTMLTextAreaElement).value,
-                          )}
-                      ></textarea>
-                    </label>
-                    <dialog
-                      class="md-preview-dialog"
-                      aria-labelledby=${previewTitleId}
-                      @click=${(e: Event) => {
-                        const dialog = e.currentTarget as HTMLDialogElement;
-                        if (e.target === dialog) {
-                          dialog.close();
+      ${
+        list
+          ? html`<div class="muted mono" style="margin-top: 8px;">
+              ${t("agents.files.workspace")}: <span>${list.workspace}</span>
+            </div>`
+          : nothing
+      }
+      ${
+        params.agentFilesError
+          ? html`<div class="callout danger" style="margin-top: 12px;">
+              ${params.agentFilesError}
+            </div>`
+          : nothing
+      }
+      ${
+        !list
+          ? html`
+              <div class="callout info" style="margin-top: 12px">${t("agents.files.loadHint")}</div>
+            `
+          : files.length === 0
+            ? html` <div class="muted" style="margin-top: 16px">${t("agents.files.empty")}</div> `
+            : html`
+                <div class="agent-tabs" style="margin-top: 14px;">
+                  ${files.map((file) => {
+                    const isActive = active === file.name;
+                    const label = file.name.replace(/\.md$/i, "");
+                    return html`
+                      <button
+                        class="agent-tab ${isActive ? "active" : ""} ${
+                          file.missing ? "agent-tab--missing" : ""
+                        }"
+                        @click=${() => params.onSelectFile(file.name)}
+                      >
+                        ${label}${
+                          file.missing
+                            ? html`
+                                <span class="agent-tab-badge">${t("agents.files.missing")}</span>
+                              `
+                            : nothing
                         }
-                      }}
-                      @close=${(e: Event) => {
-                        const dialog = e.currentTarget as HTMLElement;
-                        dialog
-                          .querySelector(".md-preview-dialog__panel")
-                          ?.classList.remove("fullscreen");
-                        setPreviewExpandButtonState(
-                          dialog.querySelector(".md-preview-expand-btn"),
-                          false,
-                        );
-                      }}
-                    >
-                      <div class="md-preview-dialog__panel">
-                        <div class="md-preview-dialog__header">
-                          <div class="md-preview-dialog__header-main">
-                            <div class="md-preview-dialog__eyebrow">
-                              ${icons.scrollText}
-                              <span>${getExtensionLabel(activeEntry.name)}</span>
-                            </div>
-                            <div class="md-preview-dialog__title-wrap">
-                              <div
-                                id=${previewTitleId}
-                                class="md-preview-dialog__title"
-                                translate="no"
-                              >
-                                ${activeEntry.name}
-                              </div>
-                              <div class="md-preview-dialog__path mono" translate="no">
-                                ${activePathLabel}
-                              </div>
-                            </div>
+                      </button>
+                    `;
+                  })}
+                </div>
+                ${
+                  !activeEntry
+                    ? html` <div class="muted" style="margin-top: 16px">
+                        ${t("agents.files.selectFile")}
+                      </div>`
+                    : html`
+                        <div class="agent-file-header" style="margin-top: 14px;">
+                          <div>
+                            <div class="agent-file-sub mono">${activeEntry.path}</div>
                           </div>
-                          <div class="md-preview-dialog__actions">
+                          <div class="agent-file-actions">
                             <button
-                              type="button"
-                              class="btn btn--sm md-preview-icon-btn md-preview-expand-btn"
-                              title=${t("agents.files.expandPreview")}
-                              aria-label=${t("agents.files.expandPreview")}
-                              aria-pressed="false"
+                              class="btn btn--sm"
+                              title=${t("agents.files.previewMarkdownTitle")}
                               @click=${(e: Event) => {
                                 const btn = e.currentTarget as HTMLElement;
-                                const panel = btn.closest(".md-preview-dialog__panel");
-                                if (!panel) {
-                                  return;
+                                const dialog = btn.closest(".card")?.querySelector("dialog");
+                                if (dialog) {
+                                  dialog.showModal();
                                 }
-                                const isFullscreen = panel.classList.toggle("fullscreen");
-                                setPreviewExpandButtonState(btn, isFullscreen);
                               }}
                             >
-                              <span class="when-normal" aria-hidden="true">${icons.maximize}</span
-                              ><span class="when-fullscreen" aria-hidden="true"
-                                >${icons.minimize}</span
-                              >
+                              ${icons.eye} ${t("agents.files.preview")}
                             </button>
                             <button
-                              type="button"
-                              class="btn btn--sm md-preview-icon-btn"
-                              title=${t("agents.files.editFile")}
-                              aria-label=${t("agents.files.editFile")}
-                              @click=${(e: Event) => {
-                                (e.currentTarget as HTMLElement).closest("dialog")?.close();
-                                const textarea =
-                                  document.querySelector<HTMLElement>(".agent-file-textarea");
-                                textarea?.focus();
-                              }}
+                              class="btn btn--sm"
+                              ?disabled=${!isDirty}
+                              @click=${() => params.onFileReset(activeEntry.name)}
                             >
-                              <span aria-hidden="true">${icons.edit}</span>
+                              ${t("common.reset")}
                             </button>
                             <button
-                              type="button"
-                              class="btn btn--sm md-preview-icon-btn"
-                              title=${t("agents.files.closePreview")}
-                              aria-label=${t("agents.files.closePreview")}
-                              @click=${(e: Event) => {
-                                (e.currentTarget as HTMLElement).closest("dialog")?.close();
-                              }}
+                              class="btn btn--sm primary"
+                              ?disabled=${params.agentFileSaving || !isDirty}
+                              @click=${() => params.onFileSave(activeEntry.name)}
                             >
-                              <span aria-hidden="true">${icons.x}</span>
+                              ${params.agentFileSaving ? t("common.saving") : t("common.save")}
                             </button>
                           </div>
                         </div>
-                        <div class="md-preview-dialog__meta">
-                          <div class="md-preview-dialog__chip ${previewStatusClass}">
-                            <strong>${previewStatusLabel}</strong>
+                        ${
+                          activeEntry.missing
+                            ? html`
+                                <div class="callout info" style="margin-top: 10px">
+                                  ${t("agents.files.missingHint")}
+                                </div>
+                              `
+                            : nothing
+                        }
+                        <label class="field agent-file-field" style="margin-top: 12px;">
+                          <span>${t("agents.files.content")}</span>
+                          <textarea
+                            class="agent-file-textarea"
+                            .value=${draft}
+                            @input=${(e: Event) =>
+                              params.onFileDraftChange(
+                                activeEntry.name,
+                                (e.target as HTMLTextAreaElement).value,
+                              )}
+                          ></textarea>
+                        </label>
+                        <dialog
+                          class="md-preview-dialog"
+                          aria-labelledby=${previewTitleId}
+                          @click=${(e: Event) => {
+                            const dialog = e.currentTarget as HTMLDialogElement;
+                            if (e.target === dialog) {
+                              dialog.close();
+                            }
+                          }}
+                          @close=${(e: Event) => {
+                            const dialog = e.currentTarget as HTMLElement;
+                            dialog
+                              .querySelector(".md-preview-dialog__panel")
+                              ?.classList.remove("fullscreen");
+                            setPreviewExpandButtonState(
+                              dialog.querySelector(".md-preview-expand-btn"),
+                              false,
+                            );
+                          }}
+                        >
+                          <div class="md-preview-dialog__panel">
+                            <div class="md-preview-dialog__header">
+                              <div class="md-preview-dialog__header-main">
+                                <div class="md-preview-dialog__eyebrow">
+                                  ${icons.scrollText}
+                                  <span>${getExtensionLabel(activeEntry.name)}</span>
+                                </div>
+                                <div class="md-preview-dialog__title-wrap">
+                                  <div
+                                    id=${previewTitleId}
+                                    class="md-preview-dialog__title"
+                                    translate="no"
+                                  >
+                                    ${activeEntry.name}
+                                  </div>
+                                  <div class="md-preview-dialog__path mono" translate="no">
+                                    ${activePathLabel}
+                                  </div>
+                                </div>
+                              </div>
+                              <div class="md-preview-dialog__actions">
+                                <button
+                                  type="button"
+                                  class="btn btn--sm md-preview-icon-btn md-preview-expand-btn"
+                                  title=${t("agents.files.expandPreview")}
+                                  aria-label=${t("agents.files.expandPreview")}
+                                  aria-pressed="false"
+                                  @click=${(e: Event) => {
+                                    const btn = e.currentTarget as HTMLElement;
+                                    const panel = btn.closest(".md-preview-dialog__panel");
+                                    if (!panel) {
+                                      return;
+                                    }
+                                    const isFullscreen = panel.classList.toggle("fullscreen");
+                                    setPreviewExpandButtonState(btn, isFullscreen);
+                                  }}
+                                >
+                                  <span class="when-normal" aria-hidden="true"
+                                    >${icons.maximize}</span
+                                  ><span class="when-fullscreen" aria-hidden="true"
+                                    >${icons.minimize}</span
+                                  >
+                                </button>
+                                <button
+                                  type="button"
+                                  class="btn btn--sm md-preview-icon-btn"
+                                  title=${t("agents.files.editFile")}
+                                  aria-label=${t("agents.files.editFile")}
+                                  @click=${(e: Event) => {
+                                    (e.currentTarget as HTMLElement).closest("dialog")?.close();
+                                    const textarea =
+                                      document.querySelector<HTMLElement>(".agent-file-textarea");
+                                    textarea?.focus();
+                                  }}
+                                >
+                                  <span aria-hidden="true">${icons.edit}</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  class="btn btn--sm md-preview-icon-btn"
+                                  title=${t("agents.files.closePreview")}
+                                  aria-label=${t("agents.files.closePreview")}
+                                  @click=${(e: Event) => {
+                                    (e.currentTarget as HTMLElement).closest("dialog")?.close();
+                                  }}
+                                >
+                                  <span aria-hidden="true">${icons.x}</span>
+                                </button>
+                              </div>
+                            </div>
+                            <div class="md-preview-dialog__meta">
+                              <div class="md-preview-dialog__chip ${previewStatusClass}">
+                                <strong>${previewStatusLabel}</strong>
+                              </div>
+                              <div class="md-preview-dialog__chip">
+                                <strong>${estimateReadingTimeLabel(draftWordCount)}</strong>
+                                <span
+                                  >${t("agents.files.words", { count: String(draftWordCount) })}</span
+                                >
+                              </div>
+                              <div class="md-preview-dialog__chip">
+                                <strong>${draftLineCount}</strong>
+                                <span>${t("agents.files.lines")}</span>
+                              </div>
+                              <div class="md-preview-dialog__chip">
+                                <strong>${draftByteSize}</strong>
+                                <span>${previewUpdatedLabel}</span>
+                              </div>
+                            </div>
+                            <div class="md-preview-dialog__body">
+                              <article class="md-preview-dialog__reader sidebar-markdown">
+                                ${unsafeHTML(previewHtml)}
+                              </article>
+                            </div>
                           </div>
-                          <div class="md-preview-dialog__chip">
-                            <strong>${estimateReadingTimeLabel(draftWordCount)}</strong>
-                            <span
-                              >${t("agents.files.words", { count: String(draftWordCount) })}</span
-                            >
-                          </div>
-                          <div class="md-preview-dialog__chip">
-                            <strong>${draftLineCount}</strong>
-                            <span>${t("agents.files.lines")}</span>
-                          </div>
-                          <div class="md-preview-dialog__chip">
-                            <strong>${draftByteSize}</strong>
-                            <span>${previewUpdatedLabel}</span>
-                          </div>
-                        </div>
-                        <div class="md-preview-dialog__body">
-                          <article class="md-preview-dialog__reader sidebar-markdown">
-                            ${unsafeHTML(previewHtml)}
-                          </article>
-                        </div>
-                      </div>
-                    </dialog>
-                  `}
-            `}
+                        </dialog>
+                      `
+                }
+              `
+      }
     </section>
   `;
 }

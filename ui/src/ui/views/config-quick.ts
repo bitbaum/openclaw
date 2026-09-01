@@ -424,9 +424,9 @@ function renderModelCard(props: QuickSettingsProps) {
             ${THINKING_LEVELS.map(
               (level) => html`
                 <button
-                  class="qs-segmented__btn ${level === props.thinkingLevel
-                    ? "qs-segmented__btn--active"
-                    : ""}"
+                  class="qs-segmented__btn ${
+                    level === props.thinkingLevel ? "qs-segmented__btn--active" : ""
+                  }"
                   @click=${() => props.onThinkingChange?.(level)}
                 >
                   ${level.charAt(0).toUpperCase() + level.slice(1)}
@@ -461,28 +461,32 @@ function renderChannelsCard(props: QuickSettingsProps) {
     <div class="qs-card qs-card--channels">
       ${renderCardHeader(icons.send, "Channels", badge)}
       <div class="qs-card__body">
-        ${props.channels.length === 0
-          ? html`<div class="qs-empty muted">No channels configured</div>`
-          : props.channels.map(
-              (ch) => html`
-                <div class="qs-row">
-                  <span class="qs-row__label">
-                    <span class="qs-status-dot ${ch.connected ? "qs-status-dot--ok" : ""}"></span>
-                    ${ch.label}
-                  </span>
-                  <span class="qs-row__value">
-                    ${ch.connected
-                      ? html`<span class="muted">${ch.detail ?? "Connected"}</span>`
-                      : html`<button
-                          class="qs-link-btn"
-                          @click=${() => props.onChannelConfigure?.(ch.id)}
-                        >
-                          Connect →
-                        </button>`}
-                  </span>
-                </div>
-              `,
-            )}
+        ${
+          props.channels.length === 0
+            ? html`<div class="qs-empty muted">No channels configured</div>`
+            : props.channels.map(
+                (ch) => html`
+                  <div class="qs-row">
+                    <span class="qs-row__label">
+                      <span class="qs-status-dot ${ch.connected ? "qs-status-dot--ok" : ""}"></span>
+                      ${ch.label}
+                    </span>
+                    <span class="qs-row__value">
+                      ${
+                        ch.connected
+                          ? html`<span class="muted">${ch.detail ?? "Connected"}</span>`
+                          : html`<button
+                              class="qs-link-btn"
+                              @click=${() => props.onChannelConfigure?.(ch.id)}
+                            >
+                              Connect →
+                            </button>`
+                      }
+                    </span>
+                  </div>
+                `,
+              )
+        }
       </div>
     </div>
   `;
@@ -564,10 +568,9 @@ function renderSecurityCard(props: QuickSettingsProps) {
             ${toolProfiles.map(
               (profile) => html`
                 <button
-                  class="qs-segmented__btn qs-segmented__btn--compact ${profile ===
-                  normalizedToolProfile
-                    ? "qs-segmented__btn--active"
-                    : ""}"
+                  class="qs-segmented__btn qs-segmented__btn--compact ${
+                    profile === normalizedToolProfile ? "qs-segmented__btn--active" : ""
+                  }"
                   @click=${() => props.onToolProfileChange?.(profile)}
                 >
                   ${profile}
@@ -607,9 +610,9 @@ function renderAppearanceCard(props: QuickSettingsProps) {
             ${themeOptions.map(
               (opt) => html`
                 <button
-                  class="qs-segmented__btn ${opt.id === props.theme
-                    ? "qs-segmented__btn--active"
-                    : ""}"
+                  class="qs-segmented__btn ${
+                    opt.id === props.theme ? "qs-segmented__btn--active" : ""
+                  }"
                   @click=${(e: Event) => {
                     if (opt.id === "custom" && !props.hasCustomTheme) {
                       props.onOpenCustomThemeImport?.();
@@ -634,9 +637,9 @@ function renderAppearanceCard(props: QuickSettingsProps) {
             ${(["light", "dark", "system"] as ThemeMode[]).map(
               (mode) => html`
                 <button
-                  class="qs-segmented__btn ${mode === props.themeMode
-                    ? "qs-segmented__btn--active"
-                    : ""}"
+                  class="qs-segmented__btn ${
+                    mode === props.themeMode ? "qs-segmented__btn--active" : ""
+                  }"
                   @click=${(e: Event) => {
                     if (mode !== props.themeMode) {
                       props.setThemeMode(mode, {
@@ -657,10 +660,9 @@ function renderAppearanceCard(props: QuickSettingsProps) {
             ${BORDER_RADIUS_STOPS.map(
               (stop) => html`
                 <button
-                  class="qs-segmented__btn qs-segmented__btn--compact ${stop.value ===
-                  props.borderRadius
-                    ? "qs-segmented__btn--active"
-                    : ""}"
+                  class="qs-segmented__btn qs-segmented__btn--compact ${
+                    stop.value === props.borderRadius ? "qs-segmented__btn--active" : ""
+                  }"
                   @click=${() => props.setBorderRadius(stop.value)}
                 >
                   ${stop.label}
@@ -675,10 +677,9 @@ function renderAppearanceCard(props: QuickSettingsProps) {
             ${TEXT_SCALE_OPTIONS.map(
               (stop) => html`
                 <button
-                  class="qs-segmented__btn qs-segmented__btn--compact ${stop.value ===
-                  props.textScale
-                    ? "qs-segmented__btn--active"
-                    : ""}"
+                  class="qs-segmented__btn qs-segmented__btn--compact ${
+                    stop.value === props.textScale ? "qs-segmented__btn--active" : ""
+                  }"
                   title=${`${stop.value}%`}
                   @click=${() => props.setTextScale(stop.value)}
                 >
@@ -784,64 +785,76 @@ function renderPersonalCard(props: QuickSettingsProps) {
               <div class="qs-identity-card__eyebrow">Assistant</div>
               <div class="qs-identity-card__title">${assistantName}</div>
               <div class="qs-identity-card__sub">${assistantAvatarSubtitle}</div>
-              ${assistantAvatarSource
-                ? html`
-                    <div
-                      class="qs-identity-card__source"
-                      title=${props.assistantAvatarSource ?? ""}
-                    >
-                      <span>${assistantAvatarSourceLabel}</span>
-                      <code>${assistantAvatarSource}</code>
-                    </div>
-                  `
-                : nothing}
-              ${assistantAvatarIssue
-                ? html`<div class="qs-identity-card__issue">${assistantAvatarIssue}</div>`
-                : nothing}
-              ${canOverrideAssistantAvatar
-                ? html`
-                    <div class="qs-identity-card__repair">
-                      <div class="qs-identity-card__actions">
-                        <label class="btn btn--sm">
-                          ${props.assistantAvatarUploadBusy
-                            ? "Saving..."
-                            : assistantAvatarOverride
-                              ? "Replace image"
-                              : "Choose image"}
-                          <input
-                            type="file"
-                            accept="image/*"
-                            hidden
-                            ?disabled=${props.assistantAvatarUploadBusy === true}
-                            @change=${(e: Event) => handleAssistantAvatarFileSelect(e, props)}
-                          />
-                        </label>
-                        ${assistantAvatarOverride
-                          ? html`
-                              <button
-                                type="button"
-                                class="btn btn--sm btn--ghost"
-                                ?disabled=${props.assistantAvatarUploadBusy === true}
-                                @click=${() => {
-                                  void props.onAssistantAvatarClearOverride?.();
-                                }}
-                              >
-                                Clear override
-                              </button>
-                            `
-                          : nothing}
+              ${
+                assistantAvatarSource
+                  ? html`
+                      <div
+                        class="qs-identity-card__source"
+                        title=${props.assistantAvatarSource ?? ""}
+                      >
+                        <span>${assistantAvatarSourceLabel}</span>
+                        <code>${assistantAvatarSource}</code>
                       </div>
-                      <div class="muted">
-                        Stores a Control UI override. Clear it to return to IDENTITY.md.
+                    `
+                  : nothing
+              }
+              ${
+                assistantAvatarIssue
+                  ? html`<div class="qs-identity-card__issue">${assistantAvatarIssue}</div>`
+                  : nothing
+              }
+              ${
+                canOverrideAssistantAvatar
+                  ? html`
+                      <div class="qs-identity-card__repair">
+                        <div class="qs-identity-card__actions">
+                          <label class="btn btn--sm">
+                            ${
+                              props.assistantAvatarUploadBusy
+                                ? "Saving..."
+                                : assistantAvatarOverride
+                                  ? "Replace image"
+                                  : "Choose image"
+                            }
+                            <input
+                              type="file"
+                              accept="image/*"
+                              hidden
+                              ?disabled=${props.assistantAvatarUploadBusy === true}
+                              @change=${(e: Event) => handleAssistantAvatarFileSelect(e, props)}
+                            />
+                          </label>
+                          ${
+                            assistantAvatarOverride
+                              ? html`
+                                  <button
+                                    type="button"
+                                    class="btn btn--sm btn--ghost"
+                                    ?disabled=${props.assistantAvatarUploadBusy === true}
+                                    @click=${() => {
+                                      void props.onAssistantAvatarClearOverride?.();
+                                    }}
+                                  >
+                                    Clear override
+                                  </button>
+                                `
+                              : nothing
+                          }
+                        </div>
+                        <div class="muted">
+                          Stores a Control UI override. Clear it to return to IDENTITY.md.
+                        </div>
                       </div>
-                    </div>
-                  `
-                : nothing}
-              ${props.assistantAvatarUploadError
-                ? html`<div class="qs-identity-card__error">
-                    ${props.assistantAvatarUploadError}
-                  </div>`
-                : nothing}
+                    `
+                  : nothing
+              }
+              ${
+                props.assistantAvatarUploadError
+                  ? html`<div class="qs-identity-card__error">
+                      ${props.assistantAvatarUploadError}
+                    </div>`
+                  : nothing
+              }
             </div>
           </section>
         </div>
@@ -959,12 +972,16 @@ function renderPresetsCard(props: QuickSettingsProps) {
                       </div>
                     </div>
                     <div class="qs-preset__badges">
-                      ${preset.id === savedPresetId
-                        ? html`<span class="qs-badge qs-badge--ok">Current</span>`
-                        : nothing}
-                      ${hasPendingProfileChange && preset.id === selectedPresetId
-                        ? html`<span class="qs-badge qs-badge--warn">Selected</span>`
-                        : nothing}
+                      ${
+                        preset.id === savedPresetId
+                          ? html`<span class="qs-badge qs-badge--ok">Current</span>`
+                          : nothing
+                      }
+                      ${
+                        hasPendingProfileChange && preset.id === selectedPresetId
+                          ? html`<span class="qs-badge qs-badge--warn">Selected</span>`
+                          : nothing
+                      }
                     </div>
                   </div>
                   <div class="qs-preset__meta">
@@ -1013,46 +1030,52 @@ function renderPresetsCard(props: QuickSettingsProps) {
             })}
           </div>
 
-          ${hasPendingConfigChange
-            ? html`
-                <div class="qs-profile-panel__actions">
-                  <div class="qs-profile-panel__actions-copy muted">${commitCopy}</div>
-                  <div class="qs-profile-panel__actions-row">
-                    <button
-                      class="btn btn--sm"
-                      ?disabled=${props.configSaving === true || props.configApplying === true}
-                      @click=${props.onResetConfig}
-                    >
-                      Discard
-                    </button>
-                    <button
-                      class="btn btn--sm primary"
-                      ?disabled=${!canCommit}
-                      @click=${props.onSaveConfig}
-                    >
-                      ${props.configSaving === true
-                        ? "Saving…"
-                        : hasPendingProfileChange
-                          ? "Save Profile"
-                          : "Save Changes"}
-                    </button>
-                    <button
-                      class="btn btn--sm"
-                      ?disabled=${!canCommit}
-                      @click=${props.onApplyConfig}
-                    >
-                      ${props.configApplying === true ? "Applying…" : "Apply Now"}
-                    </button>
+          ${
+            hasPendingConfigChange
+              ? html`
+                  <div class="qs-profile-panel__actions">
+                    <div class="qs-profile-panel__actions-copy muted">${commitCopy}</div>
+                    <div class="qs-profile-panel__actions-row">
+                      <button
+                        class="btn btn--sm"
+                        ?disabled=${props.configSaving === true || props.configApplying === true}
+                        @click=${props.onResetConfig}
+                      >
+                        Discard
+                      </button>
+                      <button
+                        class="btn btn--sm primary"
+                        ?disabled=${!canCommit}
+                        @click=${props.onSaveConfig}
+                      >
+                        ${
+                          props.configSaving === true
+                            ? "Saving…"
+                            : hasPendingProfileChange
+                              ? "Save Profile"
+                              : "Save Changes"
+                        }
+                      </button>
+                      <button
+                        class="btn btn--sm"
+                        ?disabled=${!canCommit}
+                        @click=${props.onApplyConfig}
+                      >
+                        ${props.configApplying === true ? "Applying…" : "Apply Now"}
+                      </button>
+                    </div>
                   </div>
-                </div>
-              `
-            : html`
-                <div class="qs-profile-panel__footer muted" aria-live="polite">
-                  ${savedPreset
-                    ? "Saved and ready. Choose another profile to stage a change."
-                    : "Current values are custom. Choose a profile to stage a change."}
-                </div>
-              `}
+                `
+              : html`
+                  <div class="qs-profile-panel__footer muted" aria-live="polite">
+                    ${
+                      savedPreset
+                        ? "Saved and ready. Choose another profile to stage a change."
+                        : "Current values are custom. Choose a profile to stage a change."
+                    }
+                  </div>
+                `
+          }
         </div>
       </div>
     </div>

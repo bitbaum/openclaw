@@ -223,9 +223,11 @@ function renderStepIndicator(current: CronQuickCreateStep) {
             <span class="cqc-step__dot">${state === "done" ? "✓" : idx + 1}</span>
             <span class="cqc-step__label">${t(STEP_LABELS[step])}</span>
           </div>
-          ${idx < STEPS.length - 1
-            ? html`<div class="cqc-step__line cqc-step__line--${state}"></div>`
-            : nothing}
+          ${
+            idx < STEPS.length - 1
+              ? html`<div class="cqc-step__line cqc-step__line--${state}"></div>`
+              : nothing
+          }
         `;
       })}
     </div>
@@ -295,9 +297,9 @@ function renderWhenStep(props: CronQuickCreateProps) {
         ${SCHEDULE_PRESETS.map(
           (preset) => html`
             <button
-              class="cqc-preset-card ${props.draft.schedulePreset === preset.id
-                ? "cqc-preset-card--active"
-                : ""}"
+              class="cqc-preset-card ${
+                props.draft.schedulePreset === preset.id ? "cqc-preset-card--active" : ""
+              }"
               @click=${() => props.onDraftChange({ schedulePreset: preset.id })}
             >
               <span class="cqc-preset-card__icon">${preset.icon}</span>
@@ -329,9 +331,9 @@ function renderHowStep(props: CronQuickCreateProps) {
         ${DELIVERY_PRESETS.map(
           (preset) => html`
             <label
-              class="cqc-radio-card ${props.draft.deliveryPreset === preset.id
-                ? "cqc-radio-card--active"
-                : ""}"
+              class="cqc-radio-card ${
+                props.draft.deliveryPreset === preset.id ? "cqc-radio-card--active" : ""
+              }"
             >
               <input
                 type="radio"
@@ -389,11 +391,13 @@ export function renderCronQuickCreate(props: CronQuickCreateProps) {
         </div>
 
         ${renderStepIndicator(props.step)}
-        ${props.step === "what"
-          ? renderWhatStep(props)
-          : props.step === "when"
-            ? renderWhenStep(props)
-            : renderHowStep(props)}
+        ${
+          props.step === "what"
+            ? renderWhatStep(props)
+            : props.step === "when"
+              ? renderWhenStep(props)
+              : renderHowStep(props)
+        }
       </section>
     </div>
   `;

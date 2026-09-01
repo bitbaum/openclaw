@@ -159,18 +159,24 @@ function renderEntry(props: ActivityProps, entry: ActivityEntry) {
           <span>${hiddenArgumentsLabel(entry.hiddenArgumentCount)}</span>
           <span class="mono">${t("activity.toolCallId")}: ${entry.toolCallId}</span>
           <span class="mono">${t("activity.runId")}: ${entry.runId}</span>
-          ${entry.sessionKey
-            ? html`<span class="mono">${t("activity.session")}: ${entry.sessionKey}</span>`
-            : nothing}
+          ${
+            entry.sessionKey
+              ? html`<span class="mono">${t("activity.session")}: ${entry.sessionKey}</span>`
+              : nothing
+          }
         </div>
-        ${entry.outputPreview
-          ? html`
-              <pre class="activity-entry__preview">${entry.outputPreview}</pre>
-              ${entry.outputTruncated
-                ? html`<div class="activity-entry__note">${t("activity.outputTruncated")}</div>`
-                : nothing}
-            `
-          : html`<div class="activity-entry__note">${t("activity.noOutputPreview")}</div>`}
+        ${
+          entry.outputPreview
+            ? html`
+                <pre class="activity-entry__preview">${entry.outputPreview}</pre>
+                ${
+                  entry.outputTruncated
+                    ? html`<div class="activity-entry__note">${t("activity.outputTruncated")}</div>`
+                    : nothing
+                }
+              `
+            : html`<div class="activity-entry__note">${t("activity.noOutputPreview")}</div>`
+        }
       </div>
     </details>
   `;
@@ -260,15 +266,19 @@ export function renderActivity(props: ActivityProps) {
         aria-label=${t("activity.streamLabel")}
         @scroll=${props.onScroll}
       >
-        ${filtered.length === 0
-          ? html`
-              <div class="activity-empty">
-                ${props.entries.length === 0 || !hasAnyFilters
-                  ? t("activity.empty")
-                  : t("activity.emptyFiltered")}
-              </div>
-            `
-          : filtered.map((entry) => renderEntry(props, entry))}
+        ${
+          filtered.length === 0
+            ? html`
+                <div class="activity-empty">
+                  ${
+                    props.entries.length === 0 || !hasAnyFilters
+                      ? t("activity.empty")
+                      : t("activity.emptyFiltered")
+                  }
+                </div>
+              `
+            : filtered.map((entry) => renderEntry(props, entry))
+        }
       </div>
     </section>
   `;

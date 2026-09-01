@@ -40,13 +40,11 @@ const mocks = vi.hoisted(() => {
       stderr: [],
       stop: sshStop,
     })),
-    loadGatewayTlsRuntime: vi.fn(
-      async (): Promise<GatewayTlsRuntime> => ({
-        enabled: true,
-        required: true,
-        fingerprintSha256: "sha256:local-fingerprint",
-      }),
-    ),
+    loadGatewayTlsRuntime: vi.fn(async (): Promise<GatewayTlsRuntime> => ({
+      enabled: true,
+      required: true,
+      fingerprintSha256: "sha256:local-fingerprint",
+    })),
     probeGateway: vi.fn(async (opts: { url: string }): Promise<GatewayProbeResult> => {
       const { url } = opts;
       if (url.includes("127.0.0.1")) {

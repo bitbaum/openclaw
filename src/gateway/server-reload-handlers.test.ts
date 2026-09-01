@@ -146,12 +146,10 @@ function createReloadHandlersForTest(logReload = { info: vi.fn(), warn: vi.fn() 
     startChannel: vi.fn(async () => {}),
     stopChannel: vi.fn(async () => {}),
     stopPostReadySidecars: vi.fn(),
-    reloadPlugins: vi.fn(
-      async (): Promise<GatewayPluginReloadResult> => ({
-        restartChannels: new Set(),
-        activeChannels: new Set(),
-      }),
-    ),
+    reloadPlugins: vi.fn(async (): Promise<GatewayPluginReloadResult> => ({
+      restartChannels: new Set(),
+      activeChannels: new Set(),
+    })),
     logHooks: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     logChannels: { info: vi.fn(), error: vi.fn() },
     logCron: { error: vi.fn() },
@@ -301,12 +299,10 @@ describe("gateway restart deferral preflight", () => {
       setState: vi.fn(),
       startChannel,
       stopChannel,
-      reloadPlugins: vi.fn(
-        async (): Promise<GatewayPluginReloadResult> => ({
-          restartChannels: new Set(),
-          activeChannels: new Set(),
-        }),
-      ),
+      reloadPlugins: vi.fn(async (): Promise<GatewayPluginReloadResult> => ({
+        restartChannels: new Set(),
+        activeChannels: new Set(),
+      })),
       logHooks: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
       logChannels: { info: vi.fn(), error: vi.fn() },
       logCron: { error: vi.fn() },
@@ -391,12 +387,10 @@ describe("gateway restart deferral preflight", () => {
       setState: vi.fn(),
       startChannel,
       stopChannel,
-      reloadPlugins: vi.fn(
-        async (): Promise<GatewayPluginReloadResult> => ({
-          restartChannels: new Set(),
-          activeChannels: new Set(),
-        }),
-      ),
+      reloadPlugins: vi.fn(async (): Promise<GatewayPluginReloadResult> => ({
+        restartChannels: new Set(),
+        activeChannels: new Set(),
+      })),
       logHooks: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
       logChannels: { info: vi.fn(), error: vi.fn() },
       logCron: { error: vi.fn() },
@@ -482,12 +476,10 @@ describe("gateway restart deferral preflight", () => {
       setState: vi.fn(),
       startChannel,
       stopChannel,
-      reloadPlugins: vi.fn(
-        async (): Promise<GatewayPluginReloadResult> => ({
-          restartChannels: new Set(),
-          activeChannels: new Set(),
-        }),
-      ),
+      reloadPlugins: vi.fn(async (): Promise<GatewayPluginReloadResult> => ({
+        restartChannels: new Set(),
+        activeChannels: new Set(),
+      })),
       logHooks: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
       logChannels: { info: vi.fn(), error: vi.fn() },
       logCron: { error: vi.fn() },
@@ -573,12 +565,10 @@ describe("gateway restart deferral preflight", () => {
       setState: vi.fn(),
       startChannel,
       stopChannel,
-      reloadPlugins: vi.fn(
-        async (): Promise<GatewayPluginReloadResult> => ({
-          restartChannels: new Set(),
-          activeChannels: new Set(),
-        }),
-      ),
+      reloadPlugins: vi.fn(async (): Promise<GatewayPluginReloadResult> => ({
+        restartChannels: new Set(),
+        activeChannels: new Set(),
+      })),
       logHooks: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
       logChannels: { info: vi.fn(), error: vi.fn() },
       logCron: { error: vi.fn() },
@@ -847,12 +837,10 @@ describe("gateway channel hot reload handlers", () => {
       setState,
       startChannel,
       stopChannel,
-      reloadPlugins: vi.fn(
-        async (): Promise<GatewayPluginReloadResult> => ({
-          restartChannels: new Set(),
-          activeChannels: new Set(),
-        }),
-      ),
+      reloadPlugins: vi.fn(async (): Promise<GatewayPluginReloadResult> => ({
+        restartChannels: new Set(),
+        activeChannels: new Set(),
+      })),
       logHooks: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
       logChannels,
       logCron: { error: vi.fn() },
@@ -903,12 +891,10 @@ describe("gateway channel hot reload handlers", () => {
       setState,
       startChannel,
       stopChannel,
-      reloadPlugins: vi.fn(
-        async (): Promise<GatewayPluginReloadResult> => ({
-          restartChannels: new Set(),
-          activeChannels: new Set(),
-        }),
-      ),
+      reloadPlugins: vi.fn(async (): Promise<GatewayPluginReloadResult> => ({
+        restartChannels: new Set(),
+        activeChannels: new Set(),
+      })),
       logHooks: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
       logChannels,
       logCron: { error: vi.fn() },
@@ -976,12 +962,10 @@ describe("gateway Gmail hot reload handlers", () => {
       startChannel: vi.fn(async () => {}),
       stopChannel: vi.fn(async () => {}),
       stopPostReadySidecars,
-      reloadPlugins: vi.fn(
-        async (): Promise<GatewayPluginReloadResult> => ({
-          restartChannels: new Set(),
-          activeChannels: new Set(),
-        }),
-      ),
+      reloadPlugins: vi.fn(async (): Promise<GatewayPluginReloadResult> => ({
+        restartChannels: new Set(),
+        activeChannels: new Set(),
+      })),
       logHooks: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
       logChannels: { info: vi.fn(), error: vi.fn() },
       logCron: { error: vi.fn() },
@@ -1037,12 +1021,10 @@ describe("gateway Gmail hot reload handlers", () => {
       setState: vi.fn(),
       startChannel: vi.fn(async () => {}),
       stopChannel: vi.fn(async () => {}),
-      reloadPlugins: vi.fn(
-        async (): Promise<GatewayPluginReloadResult> => ({
-          restartChannels: new Set(),
-          activeChannels: new Set(),
-        }),
-      ),
+      reloadPlugins: vi.fn(async (): Promise<GatewayPluginReloadResult> => ({
+        restartChannels: new Set(),
+        activeChannels: new Set(),
+      })),
       logHooks: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
       logChannels: { info: vi.fn(), error: vi.fn() },
       logCron: { error: vi.fn() },
@@ -1131,12 +1113,10 @@ describe("gateway Gmail hot reload handlers", () => {
       setState: vi.fn(),
       startChannel: vi.fn(async () => {}),
       stopChannel: vi.fn(async () => {}),
-      reloadPlugins: vi.fn(
-        async (): Promise<GatewayPluginReloadResult> => ({
-          restartChannels: new Set(),
-          activeChannels: new Set(),
-        }),
-      ),
+      reloadPlugins: vi.fn(async (): Promise<GatewayPluginReloadResult> => ({
+        restartChannels: new Set(),
+        activeChannels: new Set(),
+      })),
       logHooks: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
       logChannels: { info: vi.fn(), error: vi.fn() },
       logCron: { error: vi.fn() },
@@ -1236,12 +1216,10 @@ describe("gateway Gmail hot reload handlers", () => {
       setState: vi.fn(),
       startChannel: vi.fn(async () => {}),
       stopChannel: vi.fn(async () => {}),
-      reloadPlugins: vi.fn(
-        async (): Promise<GatewayPluginReloadResult> => ({
-          restartChannels: new Set(),
-          activeChannels: new Set(),
-        }),
-      ),
+      reloadPlugins: vi.fn(async (): Promise<GatewayPluginReloadResult> => ({
+        restartChannels: new Set(),
+        activeChannels: new Set(),
+      })),
       logHooks: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
       logChannels: { info: vi.fn(), error: vi.fn() },
       logCron: { error: vi.fn() },
