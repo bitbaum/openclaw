@@ -1,12 +1,10 @@
 // Resolves the OpenClaw package root from runtime and package metadata.
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { getPluginCache } from "../plugins/plugin-cache.js";
 import { openClawRootFs, openClawRootFsSync } from "./openclaw-root.fs.runtime.js";
 
 const CORE_PACKAGE_NAMES = new Set(["openclaw"]);
-const packageNameCache = new Map<string, string | null>();
-const packageRootCache = new Map<string, string | null>();
-const argv1CandidateCache = new Map<string, string[]>();
 
 function parsePackageName(raw: string): string | null {
   const parsed = JSON.parse(raw) as { name?: unknown };
@@ -14,6 +12,7 @@ function parsePackageName(raw: string): string | null {
 }
 
 async function readPackageName(dir: string): Promise<string | null> {
+  const packageNameCache = getPluginCache().sdk.packageNames;
   const packageJsonPath = path.join(path.resolve(dir), "package.json");
   if (packageNameCache.has(packageJsonPath)) {
     return packageNameCache.get(packageJsonPath) ?? null;
@@ -29,6 +28,7 @@ async function readPackageName(dir: string): Promise<string | null> {
 }
 
 function readPackageNameSync(dir: string): string | null {
+  const packageNameCache = getPluginCache().sdk.packageNames;
   const packageJsonPath = path.join(path.resolve(dir), "package.json");
   if (packageNameCache.has(packageJsonPath)) {
     return packageNameCache.get(packageJsonPath) ?? null;
@@ -67,6 +67,14 @@ function* iterAncestorDirs(startDir: string, maxDepth: number): Generator<string
   let current = path.resolve(startDir);
   for (let i = 0; i < maxDepth; i += 1) {
     yield current;
+    // Never walk above a node_modules boundary: a package.json up there belongs
+    // to the workspace that installed the tooling (for example an enclosing
+    // checkout hosting a nested git worktree), not to the package owning the
+    // running code. Crossing it made nested worktrees resolve the ancestor
+    // checkout and load its stale bundled plugin manifests.
+    if (path.basename(current) === "node_modules") {
+      break;
+    }
     const parent = path.dirname(current);
     if (parent === current) {
       break;
@@ -76,16 +84,18 @@ function* iterAncestorDirs(startDir: string, maxDepth: number): Generator<string
 }
 
 function candidateDirsFromArgv1(argv1: string): string[] {
+  const argv1CandidateCache = getPluginCache().sdk.argvDirectories;
   const cacheKey = path.resolve(argv1);
   const cached = argv1CandidateCache.get(cacheKey);
   if (cached) {
     return [...cached];
   }
   const normalized = path.resolve(argv1);
-  const candidates = [path.dirname(normalized)];
+  const candidates: string[] = [];
 
   // Resolve symlinks for version managers (nvm, fnm, n, Homebrew/Linuxbrew)
-  // that create symlinks in bin/ pointing to the real package location.
+  // that create symlinks in bin/ pointing to the real package location. Prefer
+  // the target so a launcher nested under another OpenClaw checkout keeps its own package root.
   try {
     const resolved = openClawRootFsSync.realpathSync(normalized);
     if (resolved !== normalized) {
@@ -94,6 +104,7 @@ function candidateDirsFromArgv1(argv1: string): string[] {
   } catch {
     // realpathSync throws if path doesn't exist; keep original candidates
   }
+  candidates.push(path.dirname(normalized));
 
   const parts = normalized.split(path.sep);
   const binIndex = parts.lastIndexOf(".bin");
@@ -114,19 +125,54 @@ export async function resolveOpenClawPackageRoot(opts: {
 }): Promise<string | null> {
   const candidates = buildCandidates(opts);
   const cacheKey = createPackageRootCacheKey(candidates);
-  if (packageRootCache.has(cacheKey)) {
-    return packageRootCache.get(cacheKey) ?? null;
+  const searches = getPluginCache().sdk.packageSearches;
+  const cached = searches.get(cacheKey);
+  if (cached?.all) {
+    return cached.all[0] ?? null;
+  }
+  if (cached?.first !== undefined) {
+    return cached.first;
   }
   for (const candidate of candidates) {
     const found = await findPackageRoot(candidate);
     if (found) {
-      packageRootCache.set(cacheKey, found);
+      searches.set(cacheKey, { ...searches.get(cacheKey), first: found });
       return found;
     }
   }
 
-  packageRootCache.set(cacheKey, null);
+  searches.set(cacheKey, { ...searches.get(cacheKey), first: null });
   return null;
+}
+
+// Every distinct OpenClaw package root among the runtime hints, in candidate order (symlinked
+// launcher via realpath first, then cwd). Callers that need a specific file under the root must
+// pick the first root that actually contains it: an installed package root can resolve first but
+// omit files the npm allowlist drops (e.g. scripts/), so stopping at root[0] would skip a valid
+// source-checkout cwd that still has them.
+export function resolveOpenClawPackageRootsSync(opts: {
+  cwd?: string;
+  argv1?: string;
+  moduleUrl?: string;
+}): string[] {
+  const candidates = buildCandidates(opts);
+  const cacheKey = createPackageRootCacheKey(candidates);
+  const searches = getPluginCache().sdk.packageSearches;
+  const cached = searches.get(cacheKey)?.all;
+  if (cached) {
+    return [...cached];
+  }
+  const seen = new Set<string>();
+  const roots: string[] = [];
+  for (const candidate of candidates) {
+    const found = findPackageRootSync(candidate);
+    if (found && !seen.has(found)) {
+      seen.add(found);
+      roots.push(found);
+    }
+  }
+  searches.set(cacheKey, { all: roots });
+  return [...roots];
 }
 
 export function resolveOpenClawPackageRootSync(opts: {
@@ -134,21 +180,7 @@ export function resolveOpenClawPackageRootSync(opts: {
   argv1?: string;
   moduleUrl?: string;
 }): string | null {
-  const candidates = buildCandidates(opts);
-  const cacheKey = createPackageRootCacheKey(candidates);
-  if (packageRootCache.has(cacheKey)) {
-    return packageRootCache.get(cacheKey) ?? null;
-  }
-  for (const candidate of candidates) {
-    const found = findPackageRootSync(candidate);
-    if (found) {
-      packageRootCache.set(cacheKey, found);
-      return found;
-    }
-  }
-
-  packageRootCache.set(cacheKey, null);
-  return null;
+  return resolveOpenClawPackageRootsSync(opts)[0] ?? null;
 }
 
 function buildCandidates(opts: { cwd?: string; argv1?: string; moduleUrl?: string }): string[] {
@@ -188,12 +220,3 @@ function dedupeCandidates(candidates: readonly string[]): string[] {
 function createPackageRootCacheKey(candidates: readonly string[]): string {
   return candidates.join("\0");
 }
-
-export const testing = {
-  clearOpenClawPackageRootCaches(): void {
-    packageNameCache.clear();
-    packageRootCache.clear();
-    argv1CandidateCache.clear();
-  },
-};
-export { testing as __testing };

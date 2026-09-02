@@ -14,13 +14,33 @@ Every model has a context window: the maximum number of tokens it can process. W
 2. The summary is saved in the session transcript.
 3. Recent messages are kept intact.
 
-When OpenClaw splits history into compaction chunks, it keeps assistant tool calls paired with their matching `toolResult` entries. If a split point lands inside a tool block, OpenClaw moves the boundary so the pair stays together and the current unsummarized tail is preserved.
+OpenClaw keeps assistant tool calls paired with their matching `toolResult` entries when it picks a compaction split point. If the point lands inside a tool block, OpenClaw moves the boundary so the pair stays together and the current unsummarized tail is preserved.
+
+The built-in summarizer accounts for Chinese, Japanese, and Korean (CJK) characters in both message text and tool arguments when estimating chunk sizes. These budgets are approximate; a tool call and its results stay together even when that group exceeds a chunk target.
 
 The full conversation history stays on disk. Compaction only changes what the model sees on the next turn.
+
+<Note>
+New configs default `agents.defaults.compaction.mode` to `"safeguard"` (stricter guardrails, summary quality audits). Set `mode: "default"` explicitly to opt out.
+</Note>
+
+With the built-in safeguard quality guard enabled, OpenClaw applies the final
+summary budget before validation. Required headings must remain in the retained
+generated body, while pending asks and exact identifiers must remain in the
+exact text that would be stored. Invalid output gets only the configured number
+of corrective attempts. If no finalized summary passes, compaction stops before
+writing a transcript entry, keeps the original history, and surfaces the
+existing recovery outcome.
 
 ## Auto-compaction
 
 Auto-compaction is on by default. It runs when the session nears the context limit, or when the model returns a context-overflow error (in which case OpenClaw compacts and retries).
+
+Normal replies check session usage before the next turn. Successful direct commands using the built-in OpenClaw runtime, including `openclaw agent --local`, run the same usage-based maintenance after recording the completed turn and protecting any pending reply. The following command then uses the compacted context. This works in safeguard mode even when memory flush is disabled; native runtimes retain their own compaction ownership.
+
+If direct-command post-turn compaction fails, OpenClaw logs a warning and returns the completed reply while the run and session are still current. Cancellation, restart, or a replaced session still stops that result from being returned.
+
+Set `agents.defaults.compaction.enabled: false` to disable the embedded runtime's proactive threshold compaction and direct-command post-turn maintenance. OpenClaw's preflight and overflow-recovery compaction paths remain available, as does manual `/compact`.
 
 You will see:
 
@@ -29,17 +49,17 @@ You will see:
 - `/status` showing `🧹 Compactions: <count>`.
 
 <Info>
-Before compacting, OpenClaw automatically reminds the agent to save important notes to [memory](/concepts/memory) files. This prevents context loss.
+Before compacting, OpenClaw automatically reminds the agent to save important notes to [memory](/concepts/memory) files. This helps preserve durable context.
 </Info>
 
 <AccordionGroup>
-  <Accordion title="Recognized overflow signatures">
-    OpenClaw detects context overflow from these provider error patterns:
+  <Accordion title="Overflow error patterns OpenClaw recognizes">
+    OpenClaw matches dozens of provider-specific overflow error strings (Anthropic, OpenAI, Bedrock, Gemini, Ollama, OpenRouter, and more). Common examples:
 
     - `request_too_large`
     - `context length exceeded`
     - `input exceeds the maximum number of tokens`
-    - `input token count exceeds the maximum number of input tokens`
+    - `input token count exceeds the maximum number of input tokens` (Bedrock)
     - `input is too long for the model`
     - `ollama error: context length exceeded`
 
@@ -50,11 +70,17 @@ Before compacting, OpenClaw automatically reminds the agent to save important no
 
 Type `/compact` in any chat to force a compaction. Add instructions to guide the summary:
 
-```
+```text
 /compact Focus on the API design decisions
 ```
 
-When `agents.defaults.compaction.keepRecentTokens` is set, manual compaction honors that OpenClaw cut-point and keeps the recent tail in rebuilt context. Without an explicit keep budget, manual compaction behaves as a hard checkpoint and continues from the new summary alone.
+Client-side manual compaction uses `agents.defaults.compaction.keepRecentTokens` (default: 20,000) as its cut-point budget and keeps that recent tail in rebuilt context.
+
+### Provider checkpoints
+
+When an embedded Responses provider returns a compacted window, OpenClaw preserves the complete returned context alongside the checkpoint. Recent-turn history limits do not discard an eligible checkpoint, and the retained context still counts toward the model's prompt budget. The saved checkpoint is limited to 16 MiB; oversized or incompatible endpoint output uses the normal client-side compaction path instead of being truncated.
+
+If an older version or transcript redaction removes the complete window needed for replay, OpenClaw asks you to run `/compact`. That command rebuilds context from the saved conversation through client-side compaction. It does not guess the missing provider context or delete the transcript.
 
 ## Configuration
 
@@ -62,7 +88,7 @@ Configure compaction under `agents.defaults.compaction` in your `openclaw.json`.
 
 ### Using a different model
 
-By default, compaction uses the agent's primary model. Set `agents.defaults.compaction.model` to delegate summarization to a more capable or specialized model. The override accepts any `provider/model-id` string:
+By default, compaction uses the agent's primary model. Set `agents.defaults.compaction.model` to delegate summarization to a more capable or specialized model. The override accepts a `provider/model-id` string or a bare alias configured under `agents.defaults.models`:
 
 ```json
 {
@@ -75,6 +101,8 @@ By default, compaction uses the agent's primary model. Set `agents.defaults.comp
   }
 }
 ```
+
+Bare configured aliases resolve to their canonical provider and model before compaction starts. If a bare value matches both an alias and a configured literal model ID, the literal model ID wins. An unmatched bare value remains a model ID on the active provider.
 
 This works with local models too, for example a second Ollama model dedicated to summarization:
 
@@ -94,22 +122,28 @@ When unset, compaction starts with the active session model. If summarization fa
 
 ### Identifier preservation
 
-Compaction summarization preserves opaque identifiers by default (`identifierPolicy: "strict"`). Override with `identifierPolicy: "off"` to disable, or `identifierPolicy: "custom"` plus `identifierInstructions` for custom guidance.
+Compaction summarization preserves opaque identifiers by default (`identifierPolicy: "strict"`). Override with `identifierPolicy: "off"` to disable. Custom guidance belongs in a compaction provider's `summarize()` implementation.
 
 ### Active transcript byte guard
 
-When `agents.defaults.compaction.maxActiveTranscriptBytes` is set, OpenClaw triggers normal local compaction before a run if the active JSONL reaches that size. This is useful for long-running sessions where provider-side context management may keep model context healthy while the local transcript keeps growing. It does not split raw JSONL bytes; it asks the normal compaction pipeline to create a semantic summary.
+When `agents.defaults.compaction.maxActiveTranscriptBytes` is set, OpenClaw
+triggers normal local compaction before a run if transcript history reaches
+that size. This is useful for long-running sessions where provider-side context
+management may keep model context healthy while persisted transcript history
+keeps growing. Set a positive byte count or size string such as `"20mb"` to opt
+in; `0` or an unset value disables the guard. It does not split raw bytes; it
+asks the normal compaction pipeline to create a semantic summary. For Codex
+app-server sessions, the same threshold caps native rollout transcripts and
+oversized native threads restart fresh.
 
 <Warning>
-The byte guard requires `truncateAfterCompaction: true`. Without transcript rotation, the active file would not shrink and the guard remains inactive.
+The byte guard applies to the active SQLite transcript history. Legacy JSONL
+checkpoint artifacts are not the active compaction target.
 </Warning>
 
 ### Successor transcripts
 
-When `agents.defaults.compaction.truncateAfterCompaction` is enabled, OpenClaw does not rewrite the existing transcript in place. It creates a new active successor transcript from the compaction summary, preserved state, and unsummarized tail, then records checkpoint metadata that points branch/restore flows at that compacted successor.
-Successor transcripts also drop exact duplicate long user turns that arrive
-inside a short retry window, so channel retry storms are not carried into the
-next active transcript after compaction.
+A context engine may return an explicit compacted successor session identity. OpenClaw adopts that successor and records checkpoint metadata against it. The built-in SQLite compactor keeps the current session identity and does not create a second runtime transcript.
 
 OpenClaw no longer writes separate `.checkpoint.*.jsonl` copies for new
 compactions. Existing legacy checkpoint files can still be used while referenced
@@ -117,7 +151,7 @@ and are pruned by normal session cleanup.
 
 ### Compaction notices
 
-By default, compaction runs silently. Set `notifyUser` to show brief status messages when compaction starts and completes:
+By default, compaction runs silently. Set `notifyUser` to show brief status messages when compaction starts and completes, and to surface a degraded notice when a pre-compaction memory flush is exhausted but the reply still continues:
 
 ```json5
 {
@@ -149,6 +183,8 @@ Before compaction, OpenClaw can run a **silent memory flush** turn to store dura
 }
 ```
 
+Memory flush is optional maintenance: a failure, including exhausted retries, does not reset the session or discard conversation history. If compaction is unnecessary or succeeds, OpenClaw continues the reply; with `notifyUser` enabled, exhausted flush retries also produce a degraded notice. If required compaction fails, OpenClaw reports that failure and keeps the conversation intact instead of starting over automatically.
+
 The memory-flush model override is exact and does not inherit the active session fallback chain. See [Memory](/concepts/memory) for details and config.
 
 ## Pluggable compaction providers
@@ -170,6 +206,10 @@ To use a registered provider, set its id in your config:
 ```
 
 Setting a `provider` automatically forces `mode: "safeguard"`. Providers receive the same compaction instructions and identifier-preservation policy as the built-in path, and OpenClaw still preserves recent-turn and split-turn suffix context after provider output.
+
+The built-in quality audit and its corrective retries apply only to built-in
+summarization. Configured provider output keeps the provider's existing
+validation semantics.
 
 <Note>
 If the provider fails or returns an empty result, OpenClaw falls back to built-in LLM summarization.
@@ -200,4 +240,5 @@ For advanced configuration (reserve tokens, identifier preservation, custom cont
 - [Session](/concepts/session): session management and lifecycle.
 - [Session pruning](/concepts/session-pruning): trimming tool results.
 - [Context](/concepts/context): how context is built for agent turns.
-- [Hooks](/automation/hooks): compaction lifecycle hooks (`before_compaction`, `after_compaction`).
+- [Hooks](/automation/hooks#event-types): internal compaction events (`session:compact:before`, `session:compact:after`).
+- [Plugin hooks](/plugins/hooks#hook-catalog): typed compaction hooks (`before_compaction`, `after_compaction`).

@@ -1,9 +1,11 @@
 /**
- * Doctor contract hooks for Codex plugin config migrations and session-route
- * ownership warnings.
+ * Doctor contract hooks for Codex plugin config and state migrations.
  */
 import type { OpenClawConfig } from "openclaw/plugin-sdk/config-contracts";
-import type { DoctorSessionRouteStateOwner } from "openclaw/plugin-sdk/runtime-doctor";
+import type { PluginDoctorStateMigration } from "openclaw/plugin-sdk/runtime-doctor-migrations";
+import { asNullableRecord } from "openclaw/plugin-sdk/string-coerce-runtime";
+import { codexOrphanedSessionBindingMigration } from "./src/migration/session-binding-orphans.js";
+import { stateMigrations as legacyStateMigrations } from "./src/migration/session-binding-sidecars.js";
 
 type LegacyConfigRule = {
   path: string[];
@@ -11,14 +13,27 @@ type LegacyConfigRule = {
   match: (value: unknown) => boolean;
 };
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
+function hasRetiredDynamicToolsProfile(value: unknown): boolean {
+  return Object.hasOwn(asNullableRecord(value) ?? {}, "codexDynamicToolsProfile");
 }
 
-function hasRetiredDynamicToolsProfile(value: unknown): boolean {
-  return Object.hasOwn(asRecord(value) ?? {}, "codexDynamicToolsProfile");
+function hasLegacyPluginDestructivePolicy(value: unknown): boolean {
+  const codexPlugins = asNullableRecord(value);
+  if (!codexPlugins) {
+    return false;
+  }
+  if (codexPlugins.allow_destructive_actions === "on-request") {
+    return true;
+  }
+  const plugins = asNullableRecord(codexPlugins.plugins);
+  return Object.values(plugins ?? {}).some(
+    (plugin) => asNullableRecord(plugin)?.allow_destructive_actions === "on-request",
+  );
+}
+
+function hasRetiredApprovalPolicy(value: unknown): boolean {
+  const approvalPolicy = asNullableRecord(value)?.approvalPolicy;
+  return approvalPolicy === "on-failure" || approvalPolicy === "untrusted";
 }
 
 /** Legacy Codex config keys that doctor should report or repair. */
@@ -29,6 +44,18 @@ export const legacyConfigRules: LegacyConfigRule[] = [
       'plugins.entries.codex.config.codexDynamicToolsProfile is retired; Codex app-server always keeps Codex-native workspace tools native. Run "openclaw doctor --fix".',
     match: hasRetiredDynamicToolsProfile,
   },
+  {
+    path: ["plugins", "entries", "codex", "config", "codexPlugins"],
+    message:
+      'plugins.entries.codex.config.codexPlugins.allow_destructive_actions="on-request" was renamed to "auto". Run "openclaw doctor --fix".',
+    match: hasLegacyPluginDestructivePolicy,
+  },
+  {
+    path: ["plugins", "entries", "codex", "config", "appServer"],
+    message:
+      'plugins.entries.codex.config.appServer.approvalPolicy values "on-failure" and "untrusted" are retired; use "on-request". Run "openclaw doctor --fix".',
+    match: hasRetiredApprovalPolicy,
+  },
 ];
 
 /**
@@ -38,40 +65,79 @@ export function normalizeCompatibilityConfig({ cfg }: { cfg: OpenClawConfig }): 
   config: OpenClawConfig;
   changes: string[];
 } {
-  const rawEntry = asRecord(cfg.plugins?.entries?.codex);
-  const rawPluginConfig = asRecord(rawEntry?.config);
-  if (!rawPluginConfig || !hasRetiredDynamicToolsProfile(rawPluginConfig)) {
+  const rawEntry = asNullableRecord(cfg.plugins?.entries?.codex);
+  const rawPluginConfig = asNullableRecord(rawEntry?.config);
+  const rawCodexPlugins = asNullableRecord(rawPluginConfig?.codexPlugins);
+  const rawAppServer = asNullableRecord(rawPluginConfig?.appServer);
+  const shouldRemoveDynamicToolsProfile =
+    rawPluginConfig !== null && hasRetiredDynamicToolsProfile(rawPluginConfig);
+  const shouldRewriteDestructivePolicy = hasLegacyPluginDestructivePolicy(rawCodexPlugins);
+  const shouldRewriteApprovalPolicy = hasRetiredApprovalPolicy(rawAppServer);
+  if (
+    !rawPluginConfig ||
+    (!shouldRemoveDynamicToolsProfile &&
+      !shouldRewriteDestructivePolicy &&
+      !shouldRewriteApprovalPolicy)
+  ) {
     return { config: cfg, changes: [] };
   }
 
   const nextConfig = structuredClone(cfg) as OpenClawConfig & {
     plugins?: Record<string, unknown>;
   };
-  const nextPlugins = asRecord(nextConfig.plugins);
-  const nextEntries = asRecord(nextPlugins?.entries);
-  const nextEntry = asRecord(nextEntries?.codex);
-  const nextPluginConfig = asRecord(nextEntry?.config);
+  const nextPlugins = asNullableRecord(nextConfig.plugins);
+  const nextEntries = asNullableRecord(nextPlugins?.entries);
+  const nextEntry = asNullableRecord(nextEntries?.codex);
+  const nextPluginConfig = asNullableRecord(nextEntry?.config);
   if (!nextPluginConfig) {
     return { config: cfg, changes: [] };
   }
 
-  delete nextPluginConfig.codexDynamicToolsProfile;
+  const changes: string[] = [];
+  if (shouldRemoveDynamicToolsProfile) {
+    delete nextPluginConfig.codexDynamicToolsProfile;
+    changes.push(
+      "Removed retired plugins.entries.codex.config.codexDynamicToolsProfile; Codex app-server always keeps Codex-native workspace tools native.",
+    );
+  }
+
+  if (shouldRewriteDestructivePolicy) {
+    const nextCodexPlugins = asNullableRecord(nextPluginConfig.codexPlugins);
+    if (nextCodexPlugins?.allow_destructive_actions === "on-request") {
+      nextCodexPlugins.allow_destructive_actions = "auto";
+    }
+    const nextPluginPolicies = asNullableRecord(nextCodexPlugins?.plugins);
+    for (const plugin of Object.values(nextPluginPolicies ?? {})) {
+      const nextPlugin = asNullableRecord(plugin);
+      if (nextPlugin?.allow_destructive_actions === "on-request") {
+        nextPlugin.allow_destructive_actions = "auto";
+      }
+    }
+    changes.push(
+      'Renamed plugins.entries.codex.config.codexPlugins allow_destructive_actions="on-request" values to "auto".',
+    );
+  }
+
+  if (shouldRewriteApprovalPolicy) {
+    const nextAppServer = asNullableRecord(nextPluginConfig.appServer);
+    if (
+      nextAppServer?.approvalPolicy === "on-failure" ||
+      nextAppServer?.approvalPolicy === "untrusted"
+    ) {
+      nextAppServer.approvalPolicy = "on-request";
+    }
+    changes.push(
+      'Renamed retired plugins.entries.codex.config.appServer.approvalPolicy to "on-request".',
+    );
+  }
+
   return {
     config: nextConfig,
-    changes: [
-      "Removed retired plugins.entries.codex.config.codexDynamicToolsProfile; Codex app-server always keeps Codex-native workspace tools native.",
-    ],
+    changes,
   };
 }
 
-/** Session/auth ownership metadata used by doctor route-state checks. */
-export const sessionRouteStateOwners: DoctorSessionRouteStateOwner[] = [
-  {
-    id: "codex",
-    label: "Codex",
-    providerIds: ["codex", "codex-cli", "openai-codex"],
-    runtimeIds: ["codex", "codex-cli"],
-    cliSessionKeys: ["codex-cli"],
-    authProfilePrefixes: ["codex:", "codex-cli:", "openai-codex:"],
-  },
+export const stateMigrations: PluginDoctorStateMigration[] = [
+  ...legacyStateMigrations,
+  codexOrphanedSessionBindingMigration,
 ];

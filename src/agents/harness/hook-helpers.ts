@@ -6,6 +6,7 @@
  */
 import { createSubsystemLogger } from "../../logging/subsystem.js";
 import { getGlobalHookRunner } from "../../plugins/hook-runner-global.js";
+import { applyTranscriptSenderIdentityToWrite } from "../../sessions/user-turn-transcript.metadata.js";
 import { consumeAdjustedParamsForToolCall } from "../agent-tools.before-tool-call.js";
 import type { AgentMessage } from "../runtime/index.js";
 
@@ -25,16 +26,17 @@ export async function runAgentHarnessAfterToolCallHook(params: {
   error?: string;
   startedAt?: number;
 }): Promise<void> {
+  const adjustedArgs = consumeAdjustedParamsForToolCall(params.toolCallId, params.runId);
+  // Hooks should see adjusted tool params when before_tool_call rewrote them.
+  const resolvedArgs =
+    adjustedArgs && typeof adjustedArgs === "object"
+      ? (adjustedArgs as Record<string, unknown>)
+      : params.startArgs;
+  const eventArgs = structuredClone(resolvedArgs);
   const hookRunner = getGlobalHookRunner();
   if (!hookRunner?.hasHooks("after_tool_call")) {
     return;
   }
-  const adjustedArgs = consumeAdjustedParamsForToolCall(params.toolCallId, params.runId);
-  // Hooks should see adjusted tool params when before_tool_call rewrote them.
-  const eventArgs =
-    adjustedArgs && typeof adjustedArgs === "object"
-      ? (adjustedArgs as Record<string, unknown>)
-      : params.startArgs;
   try {
     await hookRunner.runAfterToolCall(
       {
@@ -71,15 +73,13 @@ export function runAgentHarnessBeforeMessageWriteHook(params: {
   if (!hookRunner?.hasHooks("before_message_write")) {
     return params.message;
   }
-  const result = hookRunner.runBeforeMessageWrite(
-    { message: params.message },
-    {
-      ...(params.agentId ? { agentId: params.agentId } : {}),
-      ...(params.sessionKey ? { sessionKey: params.sessionKey } : {}),
-    },
+  return (
+    applyTranscriptSenderIdentityToWrite(params.message, () => {
+      const result = hookRunner.runBeforeMessageWrite(
+        { message: params.message },
+        { agentId: params.agentId, sessionKey: params.sessionKey },
+      );
+      return result?.block ? null : (result?.message ?? params.message);
+    }) ?? null
   );
-  if (result?.block) {
-    return null;
-  }
-  return result?.message ?? params.message;
 }

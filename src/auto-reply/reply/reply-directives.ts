@@ -1,13 +1,15 @@
 /** Parses inline reply directives such as media, reply targets, audio, and silence. */
 import { splitMediaFromOutput } from "../../media/parse.js";
-import { parseInlineDirectives } from "../../utils/directive-tags.js";
+import {
+  parseInlineDirectives,
+  stripInlineDirectiveTagsForDelivery,
+} from "../../utils/directive-tags.js";
 import { isSilentReplyPayloadText, SILENT_REPLY_TOKEN } from "../tokens.js";
 
 /** Parsed outbound reply directives and media extracted from model text. */
 export type ReplyDirectiveParseResult = {
   text: string;
   mediaUrls?: string[];
-  mediaUrl?: string;
   replyToId?: string;
   replyToCurrent?: boolean;
   replyToTag: boolean;
@@ -16,7 +18,7 @@ export type ReplyDirectiveParseResult = {
 };
 
 /** Options for extracting reply directives from model text. */
-export type ReplyDirectiveParseOptions = {
+type ReplyDirectiveParseOptions = {
   currentMessageId?: string;
   silentToken?: string;
   extractMarkdownImages?: boolean;
@@ -40,9 +42,9 @@ export function parseReplyDirectives(
     stripReplyTags: true,
   });
 
-  if (replyParsed.hasReplyTag) {
-    text = replyParsed.text;
-  }
+  text = stripInlineDirectiveTagsForDelivery(
+    replyParsed.hasReplyTag ? replyParsed.text : text,
+  ).text;
 
   const silentToken = options.silentToken ?? SILENT_REPLY_TOKEN;
   const isSilent = isSilentReplyPayloadText(text, silentToken);
@@ -54,7 +56,6 @@ export function parseReplyDirectives(
   return {
     text,
     mediaUrls: split.mediaUrls,
-    mediaUrl: split.mediaUrl,
     replyToId: replyParsed.replyToId,
     replyToCurrent: replyParsed.replyToCurrent || undefined,
     replyToTag: replyParsed.hasReplyTag,

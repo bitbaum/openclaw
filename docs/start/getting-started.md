@@ -6,13 +6,13 @@ read_when:
 title: "Getting started"
 ---
 
-Install OpenClaw, run onboarding, and chat with your AI assistant — all in
-about 5 minutes. By the end you will have a running Gateway, configured auth,
-and a working chat session.
+Install OpenClaw, run onboarding, and chat with your AI assistant in about 5
+minutes. By the end you will have a running Gateway, configured auth, and a
+working chat session.
 
 ## What you need
 
-- **Node.js** — Node 24 recommended (Node 22.19+ also supported)
+- **Node.js 22.22.3+, 24.15+, or 25.9+** (Node 26 is the recommended runtime)
 - **An API key** from a model provider (Anthropic, OpenAI, Google, etc.) — onboarding will prompt you
 
 <Tip>
@@ -49,13 +49,13 @@ Need to install Node? See [Node setup](/install/node).
     </Note>
 
   </Step>
-  <Step title="Run onboarding">
-    ```bash
-    openclaw onboard --install-daemon
-    ```
-
-    The wizard walks you through choosing a model provider, setting an API key,
-    and configuring the Gateway. It takes about 2 minutes.
+  <Step title="Complete onboarding">
+    The installer starts the onboarding wizard automatically. Follow it to choose
+    a model provider, set an API key, and configure the Gateway. QuickStart is
+    usually only a few minutes, but provider sign-in, channel pairing, daemon
+    install, network downloads, skills, or optional plugins can make full
+    onboarding take longer. Skip optional steps and return later with
+    `openclaw configure`.
 
     See [Onboarding (CLI)](/start/wizard) for the full reference.
 
@@ -103,7 +103,7 @@ Then set:
   "gateway": {
     "controlUi": {
       "enabled": true,
-      "root": "$HOME/.openclaw/control-ui-custom"
+      "root": "${HOME}/.openclaw/control-ui-custom"
     }
   }
 }
@@ -117,6 +117,20 @@ openclaw dashboard
 ```
 
 </Accordion>
+
+## If setup does not work
+
+One command turns the current state of your install into a diagnosis you can act on:
+
+```bash
+openclaw triage
+```
+
+It runs read-only health checks, writes a sanitized prompt describing what it found, and then offers to hand that prompt to a coding agent it detects on your machine — Claude Code, Codex CLI, or the built-in OpenClaw agent — so the agent starts with the diagnosis already loaded. Pick "just print the commands" if you would rather run the handoff yourself.
+
+Nothing leaves your machine until you choose an agent, and secrets, tokens, raw chat payloads, and raw logs are excluded from the prompt.
+
+To read the findings yourself instead, run [`openclaw doctor`](/cli/doctor). For symptom-first routes, see [Troubleshooting](/help/troubleshooting).
 
 ## What to do next
 
@@ -150,3 +164,5 @@ Full reference: [Environment variables](/help/environment).
 - [Install overview](/install)
 - [Channels overview](/channels)
 - [Setup](/start/setup)
+- [Triage](/cli/triage)
+- [Troubleshooting](/help/troubleshooting)

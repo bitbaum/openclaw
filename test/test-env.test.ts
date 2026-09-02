@@ -1,8 +1,26 @@
 // Test environment tests validate shared env setup helpers.
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { importFreshModule } from "openclaw/plugin-sdk/test-fixtures";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  inspectPersistedAuthProfileStateRaw,
+  inspectPersistedAuthProfileStoreRaw,
+  resolveAuthProfileDatabasePath,
+  runAuthProfileWriteTransaction,
+  writePersistedAuthProfileStateRaw,
+  writePersistedAuthProfileStoreRaw,
+} from "../src/agents/auth-profiles/sqlite.js";
+import { closeOpenClawAgentDatabaseByPath } from "../src/state/openclaw-agent-db.js";
+import { closeOpenClawStateDatabaseByPath } from "../src/state/openclaw-state-db.js";
+import { resolveOpenClawStateSqlitePath } from "../src/state/openclaw-state-db.paths.js";
+import {
+  captureFullEnv,
+  deleteTestEnvValue,
+  setTestEnvValue,
+  withEnv,
+} from "../src/test-utils/env.js";
 import { cleanupTempDirs, makeTempDir } from "./helpers/temp-dir.js";
 import { installTestEnv } from "./test-env.js";
 
@@ -14,14 +32,14 @@ const cleanupFns: Array<() => void> = [];
 function restoreProcessEnv(): void {
   for (const key of Object.keys(process.env)) {
     if (!(key in ORIGINAL_ENV)) {
-      delete process.env[key];
+      deleteTestEnvValue(key);
     }
   }
   for (const [key, value] of Object.entries(ORIGINAL_ENV)) {
     if (value === undefined) {
-      delete process.env[key];
+      deleteTestEnvValue(key);
     } else {
-      process.env[key] = value;
+      setTestEnvValue(key, value);
     }
   }
 }
@@ -66,16 +84,105 @@ afterEach(() => {
     cleanupFns.pop()?.();
   }
   restoreProcessEnv();
+  vi.restoreAllMocks();
+  vi.doUnmock("node:child_process");
   cleanupTempDirs(tempDirs);
 });
 
 describe("installTestEnv", () => {
+  it.each([".openclaw", ".claude"])(
+    "rolls back live staging failure at %s before another installation",
+    (failedDirectory) => {
+      const sandbox = makeTempDir(tempDirs, "openclaw-env-acquisition-");
+      const realHome = createTempHome();
+      writeFile(
+        path.join(realHome, ".profile"),
+        [
+          "export ACQUISITION_PROFILE_ADDED=from-profile",
+          "export ACQUISITION_PROFILE_EMPTY=from-profile",
+          "export OPENCLAW_TEST_FAST=from-profile",
+        ].join("\n"),
+      );
+      const configPath = path.join(realHome, ".openclaw", "openclaw.json");
+      writeFile(configPath, "{}\n");
+      writeFile(path.join(realHome, ".claude", "settings.json"), "{}\n");
+      vi.spyOn(os, "tmpdir").mockReturnValue(sandbox);
+      const snapshot = captureFullEnv();
+      cleanupFns.push(() => snapshot.restore());
+
+      withEnv(
+        {
+          HOME: realHome,
+          USERPROFILE: realHome,
+          OPENCLAW_HOME: realHome,
+          OPENCLAW_STATE_DIR: path.join(realHome, ".openclaw"),
+          OPENCLAW_CONFIG_PATH: configPath,
+          OPENCLAW_LIVE_TEST: "1",
+          OPENCLAW_LIVE_USE_REAL_HOME: undefined,
+          OPENCLAW_LIVE_TEST_QUIET: "1",
+          OPENCLAW_TEST_FAST: "",
+          ACQUISITION_PROFILE_ADDED: undefined,
+          ACQUISITION_PROFILE_EMPTY: "",
+        },
+        () => {
+          const callerEnv = { ...process.env };
+          const failure = new Error(`staging failed at ${failedDirectory}`);
+          const mkdirSync = fs.mkdirSync;
+          let failedHome = "";
+          const fault = vi.spyOn(fs, "mkdirSync").mockImplementation((target, options) => {
+            const home = process.env.HOME;
+            if (home && home !== realHome && target === path.join(home, failedDirectory)) {
+              failedHome = home;
+              throw failure;
+            }
+            return mkdirSync(target, options);
+          });
+          try {
+            let caught: unknown;
+            try {
+              const unexpected = installTestEnv();
+              cleanupFns.push(unexpected.cleanup);
+            } catch (error) {
+              caught = error;
+            }
+            expect(caught).toBe(failure);
+          } finally {
+            fault.mockRestore();
+          }
+          expect(failedHome).not.toBe("");
+          const changedKeys = [
+            ...new Set([...Object.keys(callerEnv), ...Object.keys(process.env)]),
+          ].filter((key) => callerEnv[key] !== process.env[key]);
+          expect.soft(changedKeys).toEqual([]);
+          expect.soft(fs.existsSync(failedHome)).toBe(false);
+          expect(fs.readdirSync(sandbox)).toEqual([]);
+          expect(fs.readFileSync(configPath, "utf8")).toBe("{}\n");
+
+          const next = installTestEnv();
+          cleanupFns.push(next.cleanup);
+          expect(next.tempHome).not.toBe(failedHome);
+          expect(process.env.ACQUISITION_PROFILE_ADDED).toBe("from-profile");
+          expect(process.env.ACQUISITION_PROFILE_EMPTY).toBe("from-profile");
+          expect(
+            fs.readFileSync(path.join(next.tempHome, ".claude", "settings.json"), "utf8"),
+          ).toBe("{}\n");
+          next.cleanup();
+          expect(process.env.HOME).toBe(realHome);
+          expect(process.env.OPENCLAW_TEST_FAST).toBe("from-profile");
+          expect(process.env.ACQUISITION_PROFILE_ADDED).toBe("from-profile");
+          expect(fs.readdirSync(sandbox)).toEqual([]);
+        },
+      );
+    },
+  );
+
   it("keeps live tests on a temp HOME while copying config and auth state", () => {
     const realHome = createTempHome();
+    const openClawHome = createTempHome();
     const priorIsolatedHome = createTempHome();
     writeFile(path.join(realHome, ".profile"), "export TEST_PROFILE_ONLY=from-profile\n");
     writeFile(
-      path.join(realHome, "custom-openclaw.json5"),
+      path.join(openClawHome, "custom-openclaw.json5"),
       `{
         // Preserve provider config, strip host-bound paths.
         agents: {
@@ -114,15 +221,48 @@ describe("installTestEnv", () => {
         },
       }`,
     );
-    writeFile(path.join(realHome, ".openclaw", "credentials", "token.txt"), "secret\n");
+    writeFile(path.join(openClawHome, ".openclaw", "credentials", "token.txt"), "secret\n");
     writeFile(
-      path.join(realHome, ".openclaw", "external-plugins", "glueclaw", "openclaw.plugin.json"),
+      path.join(openClawHome, ".openclaw", "external-plugins", "glueclaw", "openclaw.plugin.json"),
       '{"id":"glueclaw"}\n',
     );
-    writeFile(
-      path.join(realHome, ".openclaw", "agents", "main", "agent", "auth-profiles.json"),
-      JSON.stringify({ version: 1, profiles: { default: { provider: "openai" } } }, null, 2),
+    const realStateDir = path.join(openClawHome, ".openclaw");
+    const realAgentDir = path.join(realStateDir, "agents", "main", "agent");
+    const liveAuthStore = {
+      version: 1,
+      profiles: {
+        "openai:api-key": {
+          type: "api_key",
+          provider: "openai",
+          keyRef: {
+            source: "env",
+            provider: "default",
+            id: "OPENCLAW_LIVE_OPENAI_KEY",
+          },
+        },
+      },
+    };
+    const liveAuthState = {
+      version: 1,
+      order: { openai: ["openai:api-key"] },
+    };
+    runAuthProfileWriteTransaction(
+      realAgentDir,
+      (database) => {
+        writePersistedAuthProfileStoreRaw(liveAuthStore, realAgentDir, database);
+        writePersistedAuthProfileStateRaw(liveAuthState, realAgentDir, database);
+      },
+      { stateDir: realStateDir },
     );
+    cleanupFns.push(() => {
+      closeOpenClawAgentDatabaseByPath(resolveAuthProfileDatabasePath(realAgentDir));
+      closeOpenClawStateDatabaseByPath(
+        resolveOpenClawStateSqlitePath({
+          ...process.env,
+          OPENCLAW_STATE_DIR: realStateDir,
+        }),
+      );
+    });
     writeFile(path.join(realHome, ".claude", ".credentials.json"), '{"accessToken":"token"}\n');
     writeFile(path.join(realHome, ".claude", "projects", "old-session.jsonl"), "session\n");
     fs.mkdirSync(path.join(realHome, ".claude", "settings.local.json"), { recursive: true });
@@ -132,20 +272,51 @@ describe("installTestEnv", () => {
       path.join(realHome, ".codex", "sessions", "2026", "02", "26", "rollout.jsonl"),
       "session\n",
     );
+    writeFile(path.join(realHome, ".gemini", "oauth_creds.json"), '{"token":"gemini"}\n');
+    writeFile(path.join(realHome, ".gemini", "settings.json"), '{"theme":"dark"}\n');
+    writeFile(path.join(realHome, ".gemini", "commands", "Cache", "review.toml"), "prompt\n");
+    writeFile(path.join(realHome, ".minimax", "Cache", "credentials.json"), "minimax\n");
+    writeFile(
+      path.join(
+        realHome,
+        ".gemini",
+        "antigravity-browser-profile",
+        "Default",
+        "Cache",
+        "Cache_Data",
+        "blob",
+      ),
+      "cached-browser-bytes\n",
+    );
+    writeFile(
+      path.join(realHome, ".gemini", "antigravity", "browser_recordings", "session.webm"),
+      "recording\n",
+    );
+    writeFile(
+      path.join(realHome, ".gemini", "cli-browser-profile", "Default", "History"),
+      "browser-history\n",
+    );
+    writeFile(path.join(realHome, ".gemini", "GPUCache", "data.bin"), "gpu-cache\n");
+    writeFile(
+      path.join(realHome, ".gemini", "Service Worker", "CacheStorage", "cache.bin"),
+      "worker-cache\n",
+    );
 
-    process.env.HOME = realHome;
-    process.env.USERPROFILE = realHome;
-    process.env.OPENCLAW_LIVE_TEST = "1";
-    process.env.OPENCLAW_LIVE_TEST_QUIET = "1";
-    process.env.OPENCLAW_CONFIG_PATH = "~/custom-openclaw.json5";
-    process.env.OPENCLAW_TEST_HOME = priorIsolatedHome;
-    process.env.OPENCLAW_STATE_DIR = path.join(priorIsolatedHome, ".openclaw");
+    setTestEnvValue("HOME", realHome);
+    setTestEnvValue("USERPROFILE", realHome);
+    setTestEnvValue("OPENCLAW_HOME", openClawHome);
+    setTestEnvValue("OPENCLAW_LIVE_TEST", "1");
+    setTestEnvValue("OPENCLAW_LIVE_TEST_QUIET", "1");
+    setTestEnvValue("OPENCLAW_CONFIG_PATH", "~/custom-openclaw.json5");
+    setTestEnvValue("OPENCLAW_TEST_HOME", priorIsolatedHome);
+    setTestEnvValue("OPENCLAW_STATE_DIR", path.join(priorIsolatedHome, ".openclaw"));
 
     const testEnv = installTestEnv();
     cleanupFns.push(testEnv.cleanup);
 
     expect(testEnv.tempHome).not.toBe(realHome);
     expect(process.env.HOME).toBe(testEnv.tempHome);
+    expect(process.env.OPENCLAW_HOME).toBeUndefined();
     expect(process.env.OPENCLAW_TEST_HOME).toBe(testEnv.tempHome);
     expect(process.env.TEST_PROFILE_ONLY).toBe("from-profile");
 
@@ -167,8 +338,7 @@ describe("installTestEnv", () => {
         };
       };
     };
-    const providers = copiedConfig.models?.providers;
-    requireRecord(providers, "model providers");
+    const providers = requireRecord(copiedConfig.models?.providers, "model providers");
     expect(providers.custom).toEqual({ baseUrl: "https://example.test/v1" });
 
     const agentDefaults = requireRecord(copiedConfig.agents?.defaults, "agent defaults");
@@ -200,11 +370,16 @@ describe("installTestEnv", () => {
         ),
       ),
     ).toBe(true);
-    expect(
-      fs.existsSync(
-        path.join(testEnv.tempHome, ".openclaw", "agents", "main", "agent", "auth-profiles.json"),
-      ),
-    ).toBe(true);
+    const stagedAgentDir = path.join(testEnv.tempHome, ".openclaw", "agents", "main", "agent");
+    expect(inspectPersistedAuthProfileStoreRaw(stagedAgentDir)).toEqual({
+      status: "readable",
+      raw: liveAuthStore,
+    });
+    expect(inspectPersistedAuthProfileStateRaw(stagedAgentDir)).toEqual({
+      status: "readable",
+      raw: liveAuthState,
+    });
+    expect(fs.existsSync(path.join(stagedAgentDir, "auth-profiles.json"))).toBe(false);
     expect(fs.existsSync(path.join(testEnv.tempHome, ".claude", ".credentials.json"))).toBe(true);
     expect(fs.existsSync(path.join(testEnv.tempHome, ".claude", "projects"))).toBe(false);
     expect(fs.existsSync(path.join(testEnv.tempHome, ".claude", "settings.local.json"))).toBe(
@@ -213,17 +388,38 @@ describe("installTestEnv", () => {
     expect(fs.existsSync(path.join(testEnv.tempHome, ".codex", "auth.json"))).toBe(true);
     expect(fs.existsSync(path.join(testEnv.tempHome, ".codex", "config.toml"))).toBe(true);
     expect(fs.existsSync(path.join(testEnv.tempHome, ".codex", "sessions"))).toBe(false);
+    expect(fs.existsSync(path.join(testEnv.tempHome, ".gemini", "oauth_creds.json"))).toBe(true);
+    expect(fs.existsSync(path.join(testEnv.tempHome, ".gemini", "settings.json"))).toBe(true);
+    expect(
+      fs.existsSync(path.join(testEnv.tempHome, ".gemini", "commands", "Cache", "review.toml")),
+    ).toBe(true);
+    expect(
+      fs.existsSync(path.join(testEnv.tempHome, ".minimax", "Cache", "credentials.json")),
+    ).toBe(true);
+    expect(
+      fs.existsSync(path.join(testEnv.tempHome, ".gemini", "antigravity-browser-profile")),
+    ).toBe(false);
+    expect(
+      fs.existsSync(path.join(testEnv.tempHome, ".gemini", "antigravity", "browser_recordings")),
+    ).toBe(false);
+    expect(fs.existsSync(path.join(testEnv.tempHome, ".gemini", "cli-browser-profile"))).toBe(
+      false,
+    );
+    expect(fs.existsSync(path.join(testEnv.tempHome, ".gemini", "GPUCache"))).toBe(false);
+    expect(
+      fs.existsSync(path.join(testEnv.tempHome, ".gemini", "Service Worker", "CacheStorage")),
+    ).toBe(false);
   });
 
   it("allows explicit live runs against the real HOME", () => {
     const realHome = createTempHome();
     writeFile(path.join(realHome, ".profile"), "export TEST_PROFILE_ONLY=from-profile\n");
 
-    process.env.HOME = realHome;
-    process.env.USERPROFILE = realHome;
-    process.env.OPENCLAW_LIVE_TEST = "1";
-    process.env.OPENCLAW_LIVE_USE_REAL_HOME = "1";
-    process.env.OPENCLAW_LIVE_TEST_QUIET = "1";
+    setTestEnvValue("HOME", realHome);
+    setTestEnvValue("USERPROFILE", realHome);
+    setTestEnvValue("OPENCLAW_LIVE_TEST", "1");
+    setTestEnvValue("OPENCLAW_LIVE_USE_REAL_HOME", "1");
+    setTestEnvValue("OPENCLAW_LIVE_TEST_QUIET", "1");
 
     const testEnv = installTestEnv();
 
@@ -232,17 +428,89 @@ describe("installTestEnv", () => {
     expect(process.env.TEST_PROFILE_ONLY).toBe("from-profile");
   });
 
+  it("keeps hermetic mode isolated when live flags request the real HOME", () => {
+    const realHome = createTempHome();
+    writeFile(path.join(realHome, ".profile"), "export TEST_PROFILE_ONLY=from-profile\n");
+    writeFile(path.join(realHome, ".openclaw", "openclaw.json"), '{"live":true}\n');
+    writeFile(path.join(realHome, ".openclaw", "credentials", "token.txt"), "secret\n");
+
+    setTestEnvValue("HOME", realHome);
+    setTestEnvValue("USERPROFILE", realHome);
+    setTestEnvValue("LIVE", "1");
+    setTestEnvValue("OPENCLAW_LIVE_TEST", "1");
+    setTestEnvValue("OPENCLAW_LIVE_GATEWAY", "1");
+    setTestEnvValue("OPENCLAW_LIVE_USE_REAL_HOME", "1");
+    const callerPluginDir = path.join(realHome, "caller-plugins");
+    setTestEnvValue("OPENCLAW_BUNDLED_PLUGINS_DIR", callerPluginDir);
+    setTestEnvValue("OPENCLAW_TEST_TRUST_BUNDLED_PLUGINS_DIR", "1");
+    setTestEnvValue("OPENCLAW_DISABLE_BUNDLED_PLUGINS", "1");
+    setTestEnvValue("OPENCLAW_HOME", realHome);
+
+    const testEnv = installTestEnv({ mode: "hermetic" });
+    cleanupFns.push(testEnv.cleanup);
+
+    expect(testEnv.tempHome).not.toBe(realHome);
+    expect(process.env.HOME).toBe(testEnv.tempHome);
+    expect(process.env.TEST_PROFILE_ONLY).toBeUndefined();
+    expect(process.env.LIVE).toBeUndefined();
+    expect(process.env.OPENCLAW_LIVE_TEST).toBeUndefined();
+    expect(process.env.OPENCLAW_LIVE_GATEWAY).toBeUndefined();
+    expect(process.env.OPENCLAW_LIVE_USE_REAL_HOME).toBeUndefined();
+    expect(process.env.OPENCLAW_BUNDLED_PLUGINS_DIR).not.toBe(callerPluginDir);
+    expect(path.basename(process.env.OPENCLAW_BUNDLED_PLUGINS_DIR ?? "")).toBe("extensions");
+    expect(process.env.OPENCLAW_TEST_TRUST_BUNDLED_PLUGINS_DIR).toBe("1");
+    expect(process.env.OPENCLAW_DISABLE_BUNDLED_PLUGINS).toBeUndefined();
+    expect(process.env.OPENCLAW_HOME).toBeUndefined();
+    expect(fs.existsSync(path.join(testEnv.tempHome, ".openclaw", "openclaw.json"))).toBe(false);
+    expect(
+      fs.existsSync(path.join(testEnv.tempHome, ".openclaw", "credentials", "token.txt")),
+    ).toBe(false);
+  });
+
+  it("clears and restores OPENCLAW_HOME for normal isolated test runs", () => {
+    const realHome = createTempHome();
+    const configuredOpenClawHome = path.join(realHome, "custom-openclaw-home");
+    setTestEnvValue("HOME", realHome);
+    setTestEnvValue("USERPROFILE", realHome);
+    setTestEnvValue("OPENCLAW_HOME", configuredOpenClawHome);
+
+    const testEnv = installTestEnv();
+
+    expect(testEnv.tempHome).not.toBe(realHome);
+    expect(process.env.OPENCLAW_HOME).toBeUndefined();
+
+    testEnv.cleanup();
+    expect(process.env.OPENCLAW_HOME).toBe(configuredOpenClawHome);
+  });
+
+  it.each([
+    "TWILIO_ACCOUNT_SID",
+    "TWILIO_AUTH_TOKEN",
+    "TWILIO_PHONE_NUMBER",
+    "TWILIO_SMS_FROM",
+    "TWILIO_MESSAGING_SERVICE_SID",
+  ])("isolates and restores the SMS activation variable %s", (key) => {
+    setTestEnvValue(key, "test-channel-value");
+
+    const testEnv = installTestEnv({ mode: "hermetic" });
+    cleanupFns.push(testEnv.cleanup);
+
+    expect(process.env[key]).toBeUndefined();
+    testEnv.cleanup();
+    expect(process.env[key]).toBe("test-channel-value");
+  });
+
   it("does not load ~/.profile for normal isolated test runs", () => {
     const realHome = createTempHome();
     writeFile(path.join(realHome, ".profile"), "export TEST_PROFILE_ONLY=from-profile\n");
 
-    process.env.HOME = realHome;
-    process.env.USERPROFILE = realHome;
-    delete process.env.LIVE;
-    delete process.env.OPENCLAW_LIVE_TEST;
-    delete process.env.OPENCLAW_LIVE_GATEWAY;
-    delete process.env.OPENCLAW_LIVE_USE_REAL_HOME;
-    delete process.env.OPENCLAW_LIVE_TEST_QUIET;
+    setTestEnvValue("HOME", realHome);
+    setTestEnvValue("USERPROFILE", realHome);
+    deleteTestEnvValue("LIVE");
+    deleteTestEnvValue("OPENCLAW_LIVE_TEST");
+    deleteTestEnvValue("OPENCLAW_LIVE_GATEWAY");
+    deleteTestEnvValue("OPENCLAW_LIVE_USE_REAL_HOME");
+    deleteTestEnvValue("OPENCLAW_LIVE_TEST_QUIET");
 
     const testEnv = installTestEnv();
     cleanupFns.push(testEnv.cleanup);
@@ -255,11 +523,11 @@ describe("installTestEnv", () => {
     const realHome = createTempHome();
     writeFile(path.join(realHome, ".profile"), "export TEST_PROFILE_ONLY=from-profile\n");
 
-    process.env.HOME = realHome;
-    process.env.USERPROFILE = realHome;
-    process.env.OPENCLAW_LIVE_TEST = "1";
-    process.env.OPENCLAW_LIVE_USE_REAL_HOME = "1";
-    process.env.OPENCLAW_LIVE_TEST_QUIET = "1";
+    setTestEnvValue("HOME", realHome);
+    setTestEnvValue("USERPROFILE", realHome);
+    setTestEnvValue("OPENCLAW_LIVE_TEST", "1");
+    setTestEnvValue("OPENCLAW_LIVE_USE_REAL_HOME", "1");
+    setTestEnvValue("OPENCLAW_LIVE_TEST_QUIET", "1");
 
     vi.doMock("node:child_process", () => ({
       execFileSync: () => {

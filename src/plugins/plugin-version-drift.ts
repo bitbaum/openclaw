@@ -2,14 +2,17 @@
 import type { OpenClawConfig } from "../config/types.js";
 import type { PluginInstallRecord } from "../config/types.plugins.js";
 import { parseClawHubPluginSpec } from "../infra/clawhub-spec.js";
-import { parseRegistryNpmSpec } from "../infra/npm-registry-spec.js";
+import {
+  parseRegistryNpmSpec,
+  resolveOpenClawReleaseCohortVersion,
+} from "../infra/npm-registry-spec.js";
 import { normalizePluginsConfig, resolveEffectiveEnableState } from "./config-state.js";
 import {
   resolveTrustedSourceLinkedOfficialClawHubInstall,
   resolveTrustedSourceLinkedOfficialNpmSpec,
 } from "./official-external-install-records.js";
 
-export type PluginVersionDriftEntry = {
+type PluginVersionDriftEntry = {
   pluginId: string;
   installedVersion: string;
   gatewayVersion: string;
@@ -23,13 +26,27 @@ export type PluginVersionDriftReport = {
   drifts: PluginVersionDriftEntry[];
 };
 
-/**
- * Strip a trailing build qualifier (e.g. `2026.5.4-1` -> `2026.5.4`) so that
- * a gateway packaged as `2026.5.4-1` is not reported as drifted from a
- * plugin packaged as `2026.5.4`. Both ends are normalized identically.
- */
-function normalizeVersion(value: string): string {
-  return value.replace(/-\d+$/, "");
+function resolveExactNpmPinPackageName(entry: PluginVersionDriftEntry): string | undefined {
+  if (entry.source !== "npm" || !entry.spec) {
+    return undefined;
+  }
+  const parsed = parseRegistryNpmSpec(entry.spec);
+  if (parsed?.selectorKind !== "exact-version") {
+    return undefined;
+  }
+  return parsed.name;
+}
+
+/** Exact npm pins need a package@version target; id-only updates preserve the old pin. */
+export function resolvePluginVersionDriftUpdateCommand(entry: PluginVersionDriftEntry): string {
+  const exactNpmPackageName = resolveExactNpmPinPackageName(entry);
+  if (exactNpmPackageName) {
+    const exactNpmTarget = `${exactNpmPackageName}@${resolveOpenClawReleaseCohortVersion(entry.gatewayVersion)}`;
+    if (parseRegistryNpmSpec(exactNpmTarget)?.selectorKind === "exact-version") {
+      return `openclaw plugins update ${exactNpmTarget}`;
+    }
+  }
+  return `openclaw plugins update ${entry.pluginId}`;
 }
 
 function isPluginEnabled(config: OpenClawConfig | undefined, pluginId: string): boolean {
@@ -81,7 +98,7 @@ export function detectPluginVersionDrift(params: {
   config?: OpenClawConfig;
 }): PluginVersionDriftReport {
   const { gatewayVersion, installRecords, config } = params;
-  const normalizedGateway = normalizeVersion(gatewayVersion);
+  const normalizedGateway = resolveOpenClawReleaseCohortVersion(gatewayVersion);
   const drifts: PluginVersionDriftEntry[] = [];
 
   for (const [pluginId, record] of Object.entries(installRecords)) {
@@ -106,7 +123,7 @@ export function detectPluginVersionDrift(params: {
       // separately if desired.
       continue;
     }
-    if (normalizeVersion(installedVersion) === normalizedGateway) {
+    if (resolveOpenClawReleaseCohortVersion(installedVersion) === normalizedGateway) {
       continue;
     }
     drifts.push({
