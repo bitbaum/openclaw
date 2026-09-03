@@ -9,6 +9,8 @@ minimumReleaseAge: 2880
 minimumReleaseAgeStrict: true
 
 minimumReleaseAgeExclude:
+  # GHSA-58mr-gqgx-xq4g / GHSA-qw65-cvwx-89v3 security fix; remove after 2026-09-09.
+  - "fast-uri@4.1.4"
   - "@openclaw/crabline@0.1.19"
   - "@openclaw/fs-safe@0.5.5"
   - "@openclaw/libterminal@0.3.2"
@@ -138,7 +140,7 @@ overrides:
   "@aws-sdk/xml-builder": 3.972.39
   "@hono/node-server": 2.1.1
   axios: 1.19.0
-  fast-uri: 4.1.2
+  fast-uri: 4.1.4
   follow-redirects: 1.16.0
   defu: 6.1.7
   fast-xml-parser: 5.11.0
