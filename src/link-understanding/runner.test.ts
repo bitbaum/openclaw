@@ -72,6 +72,39 @@ describe("runLinkUnderstanding", () => {
     mocks.runCommandWithTimeout.mockReset();
   });
 
+  it("applies shared media scope rules to link message context", async () => {
+    const result = await runLinkUnderstanding({
+      cfg: {
+        tools: {
+          links: {
+            enabled: true,
+            scope: {
+              default: "allow",
+              rules: [
+                {
+                  action: "deny",
+                  match: { channel: "slack", chatType: "channel", keyPrefix: "agent:main:" },
+                },
+              ],
+            },
+            models: [{ type: "cli", command: "summarize" }],
+          },
+        },
+      } as OpenClawConfig,
+      ctx: {
+        Body: "see https://example.com/page",
+        ChatType: "channel",
+        Provider: "discord",
+        SessionKey: "agent:main:slack:channel:C123",
+        Surface: "slack",
+      } as MsgContext,
+    });
+
+    expect(result).toEqual({ urls: [], outputs: [] });
+    expect(fetchWithSsrFGuard).not.toHaveBeenCalled();
+    expect(runCommandWithTimeout).not.toHaveBeenCalled();
+  });
+
   it("fetches links through the SSRF guard before passing content to CLI stdin", async () => {
     const release = mockGuardedFetch("page body", "https://example.com/final");
     mockCommand("summarized page");
@@ -143,5 +176,60 @@ describe("runLinkUnderstanding", () => {
 
     expect(result.outputs).toEqual([]);
     expect(runCommandWithTimeout).not.toHaveBeenCalled();
+  });
+
+  it("uses the global link-tools timeout for fetches when configured", async () => {
+    mockGuardedFetch("page body", "https://example.com/final");
+    mockCommand("summarized page");
+
+    await runLinkUnderstanding({
+      cfg: {
+        tools: {
+          links: {
+            enabled: true,
+            timeoutSeconds: 15,
+            models: [
+              { type: "cli", command: "summarize-fast", timeoutSeconds: 1 },
+              { type: "cli", command: "summarize-slow", timeoutSeconds: 9 },
+            ],
+          },
+        },
+      } as OpenClawConfig,
+      ctx: ctx("see https://example.com/page"),
+    });
+
+    expect(fetchWithSsrFGuard).toHaveBeenCalledWith(
+      expect.objectContaining({
+        timeoutMs: 15000,
+        url: "https://example.com/page",
+      }),
+    );
+  });
+
+  it("falls back to the largest model timeout for fetches when no global timeout is set", async () => {
+    mockGuardedFetch("page body", "https://example.com/final");
+    mockCommand("summarized page");
+
+    await runLinkUnderstanding({
+      cfg: {
+        tools: {
+          links: {
+            enabled: true,
+            models: [
+              { type: "cli", command: "summarize-fast", timeoutSeconds: 1 },
+              { type: "cli", command: "summarize-slow", timeoutSeconds: 9 },
+            ],
+          },
+        },
+      } as OpenClawConfig,
+      ctx: ctx("see https://example.com/page"),
+    });
+
+    expect(fetchWithSsrFGuard).toHaveBeenCalledWith(
+      expect.objectContaining({
+        timeoutMs: 9000,
+        url: "https://example.com/page",
+      }),
+    );
   });
 });

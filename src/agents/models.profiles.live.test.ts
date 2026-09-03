@@ -1,15 +1,15 @@
 // Live-sweeps discovered model profiles with optional provider/model filters and probes.
 import { writeSync } from "node:fs";
+import { defaultApiRegistry } from "@openclaw/ai/internal/runtime";
+import { prepareModelForSimpleCompletion } from "@openclaw/ai/transports";
 import { normalizeProviderId } from "@openclaw/model-catalog-core/provider-id";
+import { expectDefined } from "@openclaw/normalization-core";
 import { type Api, completeSimple, type Model } from "openclaw/plugin-sdk/llm";
 import { Type } from "typebox";
 import { describe, expect, it, vi } from "vitest";
-import { getRuntimeConfig } from "../config/config.js";
 import type { OpenClawConfig } from "../config/types.openclaw.js";
 import { coerceSecretRef, type SecretInput } from "../config/types.secrets.js";
 import { parseLiveCsvFilter } from "../media-generation/live-test-helpers.js";
-import { withBundledPluginEnablementCompat } from "../plugins/bundled-compat.js";
-import { resolveOwningPluginIdsForProviderRef } from "../plugins/providers.js";
 import { runTasksWithConcurrency } from "../utils/run-with-concurrency.js";
 import {
   discoverAuthStorage,
@@ -19,59 +19,60 @@ import {
 import { resolveDefaultAgentDir } from "./agent-scope.js";
 import { externalCliDiscoveryForProviders } from "./auth-profiles/external-cli-discovery.js";
 import { ensureCustomApiRegistered } from "./custom-api-registry.js";
-import { isRateLimitErrorMessage } from "./embedded-agent-helpers/errors.js";
-import { collectAnthropicApiKeys } from "./live-auth-keys.js";
-import { appendPrioritizedDynamicLiveModels } from "./live-model-dynamic-candidates.js";
+import { extractEmbeddedAssistantText } from "./embedded-agent-utils.js";
+import { isRateLimitErrorMessage } from "./failover/classify.js";
+import { collectProviderApiKeys } from "./live-auth-keys.js";
 import { isModelNotFoundErrorMessage } from "./live-model-errors.js";
 import {
+  isLiveProfileKeyModeEnabled,
+  isLiveTestEnabled,
+  readLiveTestConfig,
+  requiresLiveProfileCredential,
+  resolveLiveCredentialPrecedence,
+} from "./live-test-helpers.js";
+import { shouldSkipLiveProviderDrift } from "./live-test-provider-drift.js";
+import {
+  isLiveBillingDrift,
+  isLiveRateLimitDrift,
+} from "./live-test-provider-drift.test-support.js";
+import {
+  getApiKeyForModelCore,
+  requireApiKey,
+  resolveUsableCustomProviderApiKey,
+} from "./model-auth.js";
+import { shouldSuppressBuiltInModelCore } from "./model-suppression.js";
+import { ensureOpenClawModelsJson } from "./models-config.js";
+import type { StreamFn } from "./runtime/index.js";
+import {
+  appendPrioritizedDynamicLiveModels,
+  applyLiveProviderPluginDiscoveryCompat,
   DEFAULT_SMALL_LIVE_MODEL_LIMIT,
   isHighSignalLiveModelRef,
   isPrioritizedHighSignalLiveModelRef,
-  isPrioritizedSmallLiveModelRef,
   isSmallLiveModelRef,
   listPrioritizedSmallLiveModelRefs,
   resolveHighSignalLiveModelLimit,
   selectHighSignalLiveItems,
   selectSmallLiveItems,
   shouldExcludeProviderFromDefaultHighSignalLiveSweep,
-} from "./live-model-filter.js";
+  resolveLiveProviderDiscoveryProviderIds,
+} from "./test-helpers/live-model-dynamic-candidates.js";
 import {
   buildLiveModelFileProbeContext,
   buildLiveModelFileProbeRetryContext,
   buildLiveModelImageProbeContext,
-  extractAssistantText,
   fileProbeTextMatches,
-  imageProbeTextMatches,
   isLiveModelProbeEnabled,
   LIVE_MODEL_FILE_PROBE_ENV,
   LIVE_MODEL_FILE_PROBE_TOKEN,
   LIVE_MODEL_IMAGE_PROBE_ENV,
   modelSupportsImageInput,
+  runLiveModelImageProbeWithRetry,
   shouldSkipLiveModelExtraProbes,
   shouldSkipLiveModelFileProbe,
   shouldSkipLiveModelImageProbe,
-} from "./live-model-turn-probes.js";
-import { createLiveTargetMatcher } from "./live-target-matcher.js";
-import {
-  isLiveProfileKeyModeEnabled,
-  isLiveTestEnabled,
-  requiresLiveProfileCredential,
-  resolveLiveCredentialPrecedence,
-} from "./live-test-helpers.js";
-import {
-  isLiveBillingDrift,
-  isLiveRateLimitDrift,
-  shouldSkipLiveProviderDrift,
-} from "./live-test-provider-drift.js";
-import {
-  getApiKeyForModel,
-  requireApiKey,
-  resolveUsableCustomProviderApiKey,
-} from "./model-auth.js";
-import { shouldSuppressBuiltInModel } from "./model-suppression.js";
-import { ensureOpenClawModelsJson } from "./models-config.js";
-import type { StreamFn } from "./runtime/index.js";
-import { prepareModelForSimpleCompletion } from "./simple-completion-transport.js";
+} from "./test-helpers/live-model-turn-probes.js";
+import { createLiveTargetMatcher } from "./test-helpers/live-target-matcher.js";
 
 const LIVE = isLiveTestEnabled();
 const DIRECT_ENABLED = Boolean(process.env.OPENCLAW_LIVE_MODELS?.trim());
@@ -199,94 +200,16 @@ function findUnmatchedExplicitLiveModelRefs(params: {
   return unmatched;
 }
 
-function resolveLiveProviderDiscoveryProviderIds(params: {
-  providerFilter: Set<string> | null;
-  explicitRefs: readonly { provider: string; id: string }[];
-  priorityRefs?: readonly { provider: string; id: string }[];
-}): string[] | undefined {
-  // Narrow startup discovery to providers that can affect the requested live target set.
-  const providers = new Set<string>();
-  for (const provider of params.providerFilter ?? []) {
-    const normalized = normalizeProviderId(provider);
-    if (normalized) {
-      providers.add(normalized);
-    }
-  }
-  for (const ref of params.explicitRefs) {
-    providers.add(ref.provider);
-  }
-  for (const ref of params.priorityRefs ?? []) {
-    providers.add(ref.provider);
-  }
-  return providers.size > 0
-    ? [...providers].toSorted((left, right) => left.localeCompare(right))
-    : undefined;
-}
-
-function resolveLiveProviderDiscoveryPluginIds(params: {
-  config?: OpenClawConfig;
-  providers: readonly string[] | undefined;
-  env?: NodeJS.ProcessEnv;
-}): string[] {
-  const pluginIds = new Set<string>();
-  for (const provider of params.providers ?? []) {
-    const owners =
-      resolveOwningPluginIdsForProviderRef({
-        provider,
-        config: params.config,
-        env: params.env,
-      }) ?? [];
-    if (owners.length === 0) {
-      pluginIds.add(provider);
-      continue;
-    }
-    for (const owner of owners) {
-      pluginIds.add(owner);
-    }
-  }
-  return [...pluginIds].toSorted((left, right) => left.localeCompare(right));
-}
-
 function applyLiveProviderDiscoveryPluginCompat(params: {
   config: OpenClawConfig;
   providers: readonly string[] | undefined;
   env?: NodeJS.ProcessEnv;
 }): OpenClawConfig {
-  const pluginIds = resolveLiveProviderDiscoveryPluginIds(params);
-  const pluginConfig =
-    pluginIds.length > 0 ? enableLiveProviderPlugins(params.config, pluginIds) : params.config;
   return applyLiveOllamaProviderEnvCompat({
-    config: pluginConfig,
+    config: applyLiveProviderPluginDiscoveryCompat(params),
     providers: params.providers,
     env: params.env,
   });
-}
-
-function enableLiveProviderPlugins(
-  config: OpenClawConfig,
-  pluginIds: readonly string[],
-): OpenClawConfig {
-  const compatConfig =
-    withBundledPluginEnablementCompat({
-      config,
-      pluginIds,
-    }) ?? config;
-  const entries = { ...compatConfig.plugins?.entries };
-  const allow = new Set(compatConfig.plugins?.allow ?? []);
-  for (const pluginId of pluginIds) {
-    allow.add(pluginId);
-    entries[pluginId] ??= { enabled: true };
-  }
-  return {
-    ...compatConfig,
-    plugins: {
-      ...compatConfig.plugins,
-      enabled: true,
-      allow: [...allow].toSorted((left, right) => left.localeCompare(right)),
-      bundledDiscovery: compatConfig.plugins?.bundledDiscovery ?? "compat",
-      entries,
-    },
-  };
 }
 
 function applyLiveOllamaProviderEnvCompat(params: {
@@ -347,6 +270,7 @@ async function ensureLiveProviderApisRegistered(params: {
   const providerConfig = params.config.models?.providers?.ollama;
   const providerBaseUrl = readConfiguredOllamaBaseUrl(providerConfig) || OLLAMA_DEFAULT_BASE_URL;
   ensureCustomApiRegistered(
+    defaultApiRegistry,
     "ollama",
     createLiveOllamaRuntimeStreamFn({
       createConfiguredOllamaStreamFn,
@@ -486,7 +410,7 @@ async function resolveLiveModelApiKeyInfo(params: {
   model: Model;
   cfg: OpenClawConfig;
   requireProfileKeys: boolean;
-}): Promise<Awaited<ReturnType<typeof getApiKeyForModel>>> {
+}): Promise<Awaited<ReturnType<typeof getApiKeyForModelCore>>> {
   if (isLiveLocalOllamaModel(params.model, params.cfg)) {
     const configuredKey = canReuseConfiguredLocalOllamaApiKey(params.model, params.cfg)
       ? resolveUsableCustomProviderApiKey({
@@ -507,7 +431,7 @@ async function resolveLiveModelApiKeyInfo(params: {
       mode: "api-key",
     };
   }
-  return await getApiKeyForModel({
+  return await getApiKeyForModelCore({
     model: params.model,
     cfg: params.cfg,
     credentialPrecedence: resolveLiveCredentialPrecedence(
@@ -526,7 +450,13 @@ function isIpv4PrivateRange(host: string): boolean {
     return false;
   }
   const [a, b] = octets;
-  return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
+  return (
+    a === 10 ||
+    (a === 172 &&
+      expectDefined(b, "b test invariant") >= 16 &&
+      expectDefined(b, "b test invariant") <= 31) ||
+    (a === 192 && b === 168)
+  );
 }
 
 function isIpv6LocalRange(host: string): boolean {
@@ -846,7 +776,6 @@ describe("explicit live model discovery scope", () => {
     const cfg = {
       plugins: {
         allow: ["openai"],
-        bundledDiscovery: "compat",
         entries: {
           openai: { enabled: true },
         },
@@ -861,15 +790,12 @@ describe("explicit live model discovery scope", () => {
 
     expect(result.plugins?.enabled).toBe(true);
     expect(result.plugins?.allow).toContain("deepseek");
-    expect(result.plugins?.bundledDiscovery).toBe("compat");
     expect(result.plugins?.entries?.deepseek).toEqual({ enabled: true });
   });
 
   it("hydrates Ollama Cloud provider settings from live env when Ollama is in scope", () => {
     const cfg = {
-      plugins: {
-        bundledDiscovery: "compat",
-      },
+      plugins: {},
     } satisfies OpenClawConfig;
 
     const result = applyLiveProviderDiscoveryPluginCompat({
@@ -891,9 +817,7 @@ describe("explicit live model discovery scope", () => {
 
   it("defaults Ollama live provider settings to the local endpoint", () => {
     const cfg = {
-      plugins: {
-        bundledDiscovery: "compat",
-      },
+      plugins: {},
     } satisfies OpenClawConfig;
 
     const result = applyLiveProviderDiscoveryPluginCompat({
@@ -913,9 +837,7 @@ describe("explicit live model discovery scope", () => {
 
   it("preserves configured Ollama provider endpoints when live env is absent", () => {
     const cfg = {
-      plugins: {
-        bundledDiscovery: "compat",
-      },
+      plugins: {},
       models: {
         providers: {
           ollama: {
@@ -943,9 +865,7 @@ describe("explicit live model discovery scope", () => {
 
   it("honors the documented Ollama baseURL alias when live env is absent", () => {
     const cfg = {
-      plugins: {
-        bundledDiscovery: "compat",
-      },
+      plugins: {},
       models: {
         providers: {
           ollama: {
@@ -974,9 +894,7 @@ describe("explicit live model discovery scope", () => {
 
   it("uses the local Ollama auth marker for self-hosted live env URLs", () => {
     const cfg = {
-      plugins: {
-        bundledDiscovery: "compat",
-      },
+      plugins: {},
     } satisfies OpenClawConfig;
 
     for (const baseUrl of [
@@ -1012,9 +930,7 @@ describe("explicit live model discovery scope", () => {
 
     for (const apiKey of remoteApiKeyRefs) {
       const cfg = {
-        plugins: {
-          bundledDiscovery: "compat",
-        },
+        plugins: {},
         models: {
           providers: {
             ollama: {
@@ -1046,9 +962,7 @@ describe("explicit live model discovery scope", () => {
 
   it("replaces configured Ollama auth when live env redirects to a different local endpoint", () => {
     const cfg = {
-      plugins: {
-        bundledDiscovery: "compat",
-      },
+      plugins: {},
       models: {
         providers: {
           ollama: {
@@ -1079,9 +993,7 @@ describe("explicit live model discovery scope", () => {
 
   it("preserves configured Ollama auth for equivalent live env base URLs", () => {
     const cfg = {
-      plugins: {
-        bundledDiscovery: "compat",
-      },
+      plugins: {},
       models: {
         providers: {
           ollama: {
@@ -1113,9 +1025,7 @@ describe("explicit live model discovery scope", () => {
   it("keeps local Ollama live auth on the non-secret marker", async () => {
     const cfg = applyLiveProviderDiscoveryPluginCompat({
       config: {
-        plugins: {
-          bundledDiscovery: "compat",
-        },
+        plugins: {},
       },
       providers: ["ollama"],
       env: {
@@ -1148,9 +1058,7 @@ describe("explicit live model discovery scope", () => {
     try {
       const cfg = applyLiveProviderDiscoveryPluginCompat({
         config: {
-          plugins: {
-            bundledDiscovery: "compat",
-          },
+          plugins: {},
         },
         providers: ["ollama"],
         env: {
@@ -1189,9 +1097,7 @@ describe("explicit live model discovery scope", () => {
     try {
       const cfg = applyLiveProviderDiscoveryPluginCompat({
         config: {
-          plugins: {
-            bundledDiscovery: "compat",
-          },
+          plugins: {},
           models: {
             providers: {
               ollama: {
@@ -1238,9 +1144,7 @@ describe("explicit live model discovery scope", () => {
     try {
       const cfg = applyLiveProviderDiscoveryPluginCompat({
         config: {
-          plugins: {
-            bundledDiscovery: "compat",
-          },
+          plugins: {},
           models: {
             providers: {
               ollama: {
@@ -1430,6 +1334,7 @@ async function completeSimpleWithTimeout<TApi extends Api>(
   });
   try {
     const completionModel = prepareModelForSimpleCompletion({
+      apiRegistry: defaultApiRegistry,
       model,
       cfg: activeLiveCompletionConfig,
     });
@@ -1615,7 +1520,7 @@ async function runDeepSeekV4ReplayRegression(params: {
   if (second.stopReason === "error") {
     throw new Error(second.errorMessage || "DeepSeek V4 replay followup returned error");
   }
-  expect(extractAssistantText(second).length).toBeGreaterThan(0);
+  expect(extractEmbeddedAssistantText(second).length).toBeGreaterThan(0);
 }
 
 async function runExtraTurnProbes(params: {
@@ -1645,7 +1550,7 @@ async function runExtraTurnProbes(params: {
     if (file.stopReason === "error") {
       throw new Error(file.errorMessage || "file-read probe returned error with no message");
     }
-    let fileText = extractAssistantText(file);
+    let fileText = extractEmbeddedAssistantText(file);
     if (!fileProbeTextMatches(fileText)) {
       logProgress(`${params.progressLabel}: file-read probe retry`);
       const retry = await completeSimpleWithTimeout(
@@ -1662,7 +1567,7 @@ async function runExtraTurnProbes(params: {
           retry.errorMessage || "file-read probe retry returned error with no message",
         );
       }
-      fileText = extractAssistantText(retry);
+      fileText = extractEmbeddedAssistantText(retry);
     }
     if (!fileProbeTextMatches(fileText)) {
       if (fileText.length === 0) {
@@ -1689,25 +1594,31 @@ async function runExtraTurnProbes(params: {
     return;
   }
 
-  logProgress(`${params.progressLabel}: image probe`);
-  const image = await completeSimpleWithTimeout(
-    params.model,
-    buildLiveModelImageProbeContext({ systemPrompt: resolveLiveSystemPrompt(params.model) }),
-    options,
-    params.timeoutMs,
-    `${params.progressLabel}: image probe`,
-  );
-  if (image.stopReason === "error") {
-    throw new Error(image.errorMessage || "image probe returned error with no message");
-  }
-  const imageText = extractAssistantText(image);
-  if (!imageProbeTextMatches(imageText)) {
-    if (imageText.length === 0) {
-      logProgress(`${params.progressLabel}: image probe skipped (empty response)`);
-      return;
-    }
-    throw new Error(`image probe did not return ok: ${imageText}`);
-  }
+  await runLiveModelImageProbeWithRetry({
+    run: async (attempt) => {
+      const attemptLabel = `${params.progressLabel}: image probe attempt ${attempt}/2`;
+      logProgress(attemptLabel);
+      const image = await completeSimpleWithTimeout(
+        params.model,
+        buildLiveModelImageProbeContext({ systemPrompt: resolveLiveSystemPrompt(params.model) }),
+        options,
+        params.timeoutMs,
+        attemptLabel,
+      );
+      if (image.stopReason === "error" || image.stopReason === "aborted") {
+        const fallback =
+          image.stopReason === "aborted"
+            ? `${attemptLabel} was aborted`
+            : `${attemptLabel} returned error with no message`;
+        throw new Error(image.errorMessage || fallback);
+      }
+      return extractEmbeddedAssistantText(image);
+    },
+    onRetry: (firstText) => {
+      const reason = firstText.length === 0 ? "was empty" : "did not return ok";
+      logProgress(`${params.progressLabel}: image probe attempt 1/2 ${reason}; retrying once`);
+    },
+  });
 }
 
 describeLive("live models (profile keys)", () => {
@@ -1716,7 +1627,7 @@ describeLive("live models (profile keys)", () => {
     async () => {
       logProgress("[live-models] loading config");
       const loadedCfg = await withLiveStageTimeout(
-        Promise.resolve().then(() => getRuntimeConfig()),
+        readLiveTestConfig(),
         "[live-models] load config",
       );
       const rawModels = process.env.OPENCLAW_LIVE_MODELS?.trim();
@@ -1760,9 +1671,11 @@ describeLive("live models (profile keys)", () => {
         );
         return;
       }
-      const anthropicKeys = collectAnthropicApiKeys();
+      const anthropicKeys = process.env.ANTHROPIC_OAUTH_TOKEN?.trim()
+        ? []
+        : collectProviderApiKeys("anthropic");
       if (anthropicKeys.length > 0) {
-        process.env.ANTHROPIC_API_KEY = anthropicKeys[0];
+        vi.stubEnv("ANTHROPIC_API_KEY", expectDefined(anthropicKeys[0], "Anthropic API key 1"));
         logProgress(`[live-models] anthropic keys loaded: ${anthropicKeys.length}`);
       }
 
@@ -1839,11 +1752,11 @@ describeLive("live models (profile keys)", () => {
       const skipped: Array<{ model: string; reason: string }> = [];
       const candidates: Array<{
         model: Model;
-        apiKeyInfo: Awaited<ReturnType<typeof getApiKeyForModel>>;
+        apiKeyInfo: Awaited<ReturnType<typeof getApiKeyForModelCore>>;
       }> = [];
 
       for (const model of models) {
-        if (shouldSuppressBuiltInModel({ provider: model.provider, id: model.id })) {
+        if (shouldSuppressBuiltInModelCore({ provider: model.provider, id: model.id })) {
           continue;
         }
         if (!targetMatcher.matchesProvider(model.provider)) {
@@ -1854,12 +1767,6 @@ describeLive("live models (profile keys)", () => {
           continue;
         }
         if (!filter && useSmall) {
-          if (
-            useSmallPriorityOnly &&
-            !isPrioritizedSmallLiveModelRef({ provider: model.provider, id: model.id })
-          ) {
-            continue;
-          }
           if (!isSmallLiveModelRef({ provider: model.provider, id: model.id })) {
             continue;
           }
@@ -1964,13 +1871,11 @@ describeLive("live models (profile keys)", () => {
         const attemptMax =
           model.provider === "anthropic" && anthropicKeys.length > 0 ? anthropicKeys.length : 1;
         for (let attempt = 0; attempt < attemptMax; attempt += 1) {
-          if (model.provider === "anthropic" && anthropicKeys.length > 0) {
-            process.env.ANTHROPIC_API_KEY = anthropicKeys[attempt];
-          }
-          const apiKey =
+          const anthropicApiKey =
             model.provider === "anthropic" && anthropicKeys.length > 0
-              ? anthropicKeys[attempt]
-              : requireApiKey(apiKeyInfo, model.provider);
+              ? expectDefined(anthropicKeys[attempt], `Anthropic API key ${attempt + 1}`)
+              : undefined;
+          const apiKey = anthropicApiKey ?? requireApiKey(apiKeyInfo, model.provider);
           try {
             // Special regression: OpenAI requires replayed `reasoning` items for tool-only turns.
             if (
@@ -2120,12 +2025,15 @@ describeLive("live models (profile keys)", () => {
             }
 
             logProgress(`${progressLabel}: prompt`);
-            const ok = await completeOkWithRetry({
-              model,
-              apiKey,
-              timeoutMs: perModelTimeoutMs,
-              progressLabel,
-            });
+            const ok = expectDefined(
+              await completeOkWithRetry({
+                model,
+                apiKey,
+                timeoutMs: perModelTimeoutMs,
+                progressLabel,
+              }),
+              `${progressLabel} completion result`,
+            );
 
             if (ok.res.stopReason === "error") {
               const msg = ok.res.errorMessage ?? "";
@@ -2368,3 +2276,4 @@ describeLive("live models (profile keys)", () => {
     LIVE_TEST_TIMEOUT_MS,
   );
 });
+/* oxlint-disable max-lines -- TODO: split this grandfathered oversized file. */

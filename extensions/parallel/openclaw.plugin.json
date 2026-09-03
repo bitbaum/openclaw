@@ -24,10 +24,7 @@
     }
   },
   "contracts": {
-    "webSearchProviders": ["parallel"]
-  },
-  "configContracts": {
-    "compatibilityRuntimePaths": ["tools.web.search.apiKey"]
+    "webSearchProviders": ["parallel", "parallel-free"]
   },
   "configSchema": {
     "type": "object",

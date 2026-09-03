@@ -3,21 +3,42 @@
  * gateway/session identity to spawned ACP processes and clean them up later.
  */
 import { randomUUID, createHash } from "node:crypto";
-import fs from "node:fs/promises";
-import path from "node:path";
-import { readJsonFileWithFallback, writeJsonFileAtomically } from "openclaw/plugin-sdk/json-store";
+import type {
+  OpenKeyedStoreOptions,
+  PluginStateKeyedStore,
+} from "openclaw/plugin-sdk/plugin-state-runtime";
+import { splitCommandParts } from "./command-line.js";
+import { ACPX_PROCESS_LEASE_MAX_ENTRIES, ACPX_PROCESS_LEASE_NAMESPACE } from "./state.js";
 
-/** Environment variable carrying the ACPX process lease id. */
-export const OPENCLAW_ACPX_LEASE_ID_ENV = "OPENCLAW_ACPX_LEASE_ID";
-/** Environment variable carrying the owning gateway instance id. */
-export const OPENCLAW_GATEWAY_INSTANCE_ID_ENV = "OPENCLAW_GATEWAY_INSTANCE_ID";
-/** CLI argument carrying the ACPX process lease id for platforms without env wrapping. */
+/** CLI argument carrying the ACPX process lease id. */
 export const OPENCLAW_ACPX_LEASE_ID_ARG = "--openclaw-acpx-lease-id";
 /** CLI argument carrying the owning gateway instance id. */
 export const OPENCLAW_GATEWAY_INSTANCE_ID_ARG = "--openclaw-gateway-instance-id";
+/** Synthetic session identity for generated-wrapper health probes. */
+export const ACPX_PROBE_LEASE_SESSION_KEY = "openclaw:acpx:probe";
+
+export type AcpxProcessLeaseIdentity = {
+  leaseId: string;
+  gatewayInstanceId: string;
+};
+
+/** Read OpenClaw lease identity from a generated wrapper command. */
+export function readAcpxProcessLeaseIdentity(
+  command: string | undefined,
+): AcpxProcessLeaseIdentity | undefined {
+  const parts = splitCommandParts(command?.trim() ?? "");
+  const leaseIndex = parts.lastIndexOf(OPENCLAW_ACPX_LEASE_ID_ARG);
+  const gatewayIndex = parts.lastIndexOf(OPENCLAW_GATEWAY_INSTANCE_ID_ARG);
+  const leaseId = leaseIndex >= 0 ? parts[leaseIndex + 1]?.trim() : "";
+  const gatewayInstanceId = gatewayIndex >= 0 ? parts[gatewayIndex + 1]?.trim() : "";
+  if (!leaseId || !gatewayInstanceId) {
+    return undefined;
+  }
+  return { leaseId, gatewayInstanceId };
+}
 
 /** Lifecycle state for a tracked ACPX wrapper process. */
-export type AcpxProcessLeaseState = "open" | "closing" | "closed" | "lost";
+type AcpxProcessLeaseState = "open" | "closing" | "closed" | "lost";
 
 /** Persisted identity and command metadata for one ACPX wrapper process. */
 export type AcpxProcessLease = {
@@ -41,14 +62,12 @@ export type AcpxProcessLeaseStore = {
   markState(leaseId: string, state: AcpxProcessLeaseState): Promise<void>;
 };
 
-type LeaseFile = {
+type AcpxProcessLeaseFile = {
   version: 1;
   leases: AcpxProcessLease[];
 };
 
-const LEASE_FILE = "process-leases.json";
-
-function normalizeLease(value: unknown): AcpxProcessLease | undefined {
+export function normalizeAcpxProcessLease(value: unknown): AcpxProcessLease | undefined {
   if (typeof value !== "object" || value === null) {
     return undefined;
   }
@@ -80,69 +99,78 @@ function normalizeLease(value: unknown): AcpxProcessLease | undefined {
   };
 }
 
-async function readLeaseFile(filePath: string): Promise<LeaseFile> {
-  const { value } = await readJsonFileWithFallback<Partial<LeaseFile>>(filePath, {
-    version: 1,
-    leases: [],
-  });
-  const leases = Array.isArray(value.leases)
-    ? value.leases.map(normalizeLease).filter((lease): lease is AcpxProcessLease => Boolean(lease))
+export function normalizeAcpxProcessLeaseFile(value: unknown): AcpxProcessLeaseFile {
+  const root =
+    typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
+  const leases = Array.isArray(root.leases)
+    ? root.leases
+        .map(normalizeAcpxProcessLease)
+        .filter((lease): lease is AcpxProcessLease => Boolean(lease))
     : [];
   return { version: 1, leases };
 }
 
-function writeLeaseFile(filePath: string, value: LeaseFile): Promise<void> {
-  return writeJsonFileAtomically(filePath, value);
+export function openAcpxProcessLeaseStateStore(
+  openKeyedStore: <T>(options: OpenKeyedStoreOptions) => PluginStateKeyedStore<T>,
+): PluginStateKeyedStore<AcpxProcessLease> {
+  return openKeyedStore<AcpxProcessLease>({
+    namespace: ACPX_PROCESS_LEASE_NAMESPACE,
+    maxEntries: ACPX_PROCESS_LEASE_MAX_ENTRIES,
+    overflowPolicy: "reject-new",
+  });
 }
 
-/** Create a serialized JSON-backed ACPX process lease store. */
-export function createAcpxProcessLeaseStore(params: { stateDir: string }): AcpxProcessLeaseStore {
-  const filePath = path.join(params.stateDir, LEASE_FILE);
+/** Create a serialized SQLite-backed ACPX process lease store. */
+export function createAcpxProcessLeaseStore(params: {
+  store: PluginStateKeyedStore<AcpxProcessLease>;
+}): AcpxProcessLeaseStore {
   let updateQueue: Promise<void> = Promise.resolve();
 
-  async function update(
-    mutator: (leases: AcpxProcessLease[]) => AcpxProcessLease[],
-  ): Promise<void> {
+  async function update(mutator: () => Promise<void>): Promise<void> {
     const run = updateQueue.then(async () => {
-      await fs.mkdir(params.stateDir, { recursive: true });
-      const current = await readLeaseFile(filePath);
-      await writeLeaseFile(filePath, {
-        version: 1,
-        leases: mutator(current.leases),
-      });
+      await mutator();
     });
     updateQueue = run.catch(() => {});
     await run;
   }
 
-  async function readCurrent(): Promise<LeaseFile> {
+  async function readCurrent(): Promise<AcpxProcessLease[]> {
     await updateQueue;
-    return await readLeaseFile(filePath);
+    const entries = await params.store.entries();
+    return entries
+      .map((entry) => normalizeAcpxProcessLease(entry.value))
+      .filter((lease): lease is AcpxProcessLease => Boolean(lease));
   }
 
   return {
     async load(leaseId) {
-      const current = await readCurrent();
-      return current.leases.find((lease) => lease.leaseId === leaseId);
+      await updateQueue;
+      return normalizeAcpxProcessLease(await params.store.lookup(leaseId));
     },
     async listOpen(gatewayInstanceId) {
-      const current = await readCurrent();
-      return current.leases.filter(
+      const leases = await readCurrent();
+      return leases.filter(
         (lease) =>
           (lease.state === "open" || lease.state === "closing") &&
           (!gatewayInstanceId || lease.gatewayInstanceId === gatewayInstanceId),
       );
     },
     async save(lease) {
-      await update((leases) => [
-        ...leases.filter((entry) => entry.leaseId !== lease.leaseId),
-        lease,
-      ]);
+      await update(async () => {
+        await params.store.register(lease.leaseId, lease);
+      });
     },
     async markState(leaseId, state) {
-      await update((leases) =>
-        leases.map((lease) => (lease.leaseId === leaseId ? { ...lease, state } : lease)),
-      );
+      await update(async () => {
+        if (state === "closed" || state === "lost") {
+          await params.store.delete(leaseId);
+          return;
+        }
+        const lease = normalizeAcpxProcessLease(await params.store.lookup(leaseId));
+        if (lease) {
+          await params.store.register(leaseId, { ...lease, state });
+        }
+      });
     },
   };
 }
@@ -175,20 +203,11 @@ function appendAcpxLeaseArgs(params: {
   ].join(" ");
 }
 
-/** Add ACPX lease identity to a command through env vars and portable args. */
+/** Add ACPX lease identity to a command through portable wrapper arguments. */
 export function withAcpxLeaseEnvironment(params: {
   command: string;
   leaseId: string;
   gatewayInstanceId: string;
-  platform?: NodeJS.Platform;
 }): string {
-  if ((params.platform ?? process.platform) === "win32") {
-    return appendAcpxLeaseArgs(params);
-  }
-  return [
-    "env",
-    `${OPENCLAW_ACPX_LEASE_ID_ENV}=${quoteEnvValue(params.leaseId)}`,
-    `${OPENCLAW_GATEWAY_INSTANCE_ID_ENV}=${quoteEnvValue(params.gatewayInstanceId)}`,
-    appendAcpxLeaseArgs(params),
-  ].join(" ");
+  return appendAcpxLeaseArgs(params);
 }

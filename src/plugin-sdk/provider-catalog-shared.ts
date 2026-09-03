@@ -1,8 +1,10 @@
 // Provider catalog helpers normalize, hash, and expose model catalogs for provider plugins.
 import { createHash } from "node:crypto";
 import { normalizeModelCatalog } from "@openclaw/model-catalog-core/model-catalog-normalize";
+import { buildModelCatalogRef } from "@openclaw/model-catalog-core/model-catalog-refs";
 import type {
   ModelCatalogCost,
+  ModelCatalogMediaInputConfig,
   ModelCatalogModel,
   ModelCatalogTieredCost,
 } from "@openclaw/model-catalog-core/model-catalog-types";
@@ -11,13 +13,20 @@ import {
   isFutureDateTimestampMs,
   resolveExpiresAtMsFromDurationMs,
 } from "../../packages/normalization-core/src/number-coercion.js";
+import { normalizeOptionalString } from "../../packages/normalization-core/src/string-coerce.js";
 import { normalizeConfiguredProviderCatalogModelId } from "../agents/model-ref-shared.js";
 import { resolveProviderRequestCapabilities } from "../agents/provider-attribution.js";
 import type { ModelDefinitionConfig } from "../config/types.models.js";
 import type { OpenClawConfig } from "../config/types.openclaw.js";
+import { pruneMapToMaxSize } from "../infra/map-size.js";
+import type { ProviderPlugin } from "../plugins/types.js";
 import type { ModelProviderConfig } from "./provider-model-shared.js";
 
-export type { ProviderCatalogContext, ProviderCatalogResult } from "../plugins/types.js";
+export type {
+  ProviderCatalogContext,
+  ProviderCatalogOutcome,
+  ProviderCatalogResult,
+} from "../plugins/types.js";
 
 export {
   buildPairedProviderApiKeyCatalog,
@@ -48,6 +57,7 @@ type LiveCatalogCacheEntry<T> = {
   value: Promise<T>;
 };
 
+const LIVE_CATALOG_CACHE_MAX_ENTRIES = 100;
 const liveCatalogCache = new Map<string, LiveCatalogCacheEntry<unknown>>();
 
 function buildLiveCatalogCacheKey(parts: readonly unknown[]): string {
@@ -62,13 +72,19 @@ export async function getCachedLiveCatalogValue<T>(params: {
   keyParts: readonly unknown[];
   /** Loader for the live catalog value when no fresh cache entry exists. */
   load: () => Promise<T>;
+  /** Optional predicate for values that are healthy enough to retain. */
+  shouldCache?: (value: T) => boolean;
   /** Cache lifetime in milliseconds; defaults to a short provider-discovery TTL. */
   ttlMs?: number;
   /** Test hook for deterministic cache expiry. */
   now?: () => number;
 }): Promise<T> {
   const rawNow = params.now?.() ?? Date.now();
-  const ttlMs = params.ttlMs ?? 30_000;
+  const expiresAt = resolveExpiresAtMsFromDurationMs(params.ttlMs ?? 30_000, { nowMs: rawNow });
+  // Uncached callers must neither reuse nor disturb an existing entry.
+  if (expiresAt === undefined) {
+    return await params.load();
+  }
   const key = buildLiveCatalogCacheKey(params.keyParts);
   const existing = liveCatalogCache.get(key) as LiveCatalogCacheEntry<T> | undefined;
   if (existing) {
@@ -77,20 +93,22 @@ export async function getCachedLiveCatalogValue<T>(params: {
     }
     liveCatalogCache.delete(key);
   }
-  const value = params.load();
-  const expiresAt = resolveExpiresAtMsFromDurationMs(ttlMs, { nowMs: rawNow });
-  if (expiresAt !== undefined) {
-    liveCatalogCache.set(key, {
-      expiresAt,
-      value,
-    });
-  }
+  const entry = { expiresAt, value: params.load() };
+  // Auth-scoped live provider catalogs can vary by token; keep this
+  // process-local cache bounded so discovery cannot grow without limit.
+  pruneMapToMaxSize(liveCatalogCache, LIVE_CATALOG_CACHE_MAX_ENTRIES - 1);
+  liveCatalogCache.set(key, entry);
+  let retain = false;
   try {
-    return await value;
-  } catch (err) {
-    // Failed live discovery should not poison later retries for the same provider/config.
-    liveCatalogCache.delete(key);
-    throw err;
+    const resolved = await entry.value;
+    retain = params.shouldCache?.(resolved) ?? true;
+    return resolved;
+  } finally {
+    // Expired work may finish after a replacement load. Only its own entry
+    // can be removed when loading or the cache predicate fails.
+    if (!retain && liveCatalogCache.get(key) === entry) {
+      liveCatalogCache.delete(key);
+    }
   }
 }
 
@@ -107,6 +125,19 @@ function countRawManifestCatalogModels(catalog: unknown): number | undefined {
   }
   const models = (catalog as { models?: unknown }).models;
   return Array.isArray(models) ? models.length : undefined;
+}
+
+/** Reads a provider's normalized manifest default as a fully qualified model ref. */
+export function readManifestProviderDefaultModelRef(
+  manifest: unknown,
+  providerId: string,
+): string | undefined {
+  const catalog = (manifest as { modelCatalog?: { providers?: Record<string, unknown> } })
+    ?.modelCatalog?.providers?.[providerId];
+  const defaultModel = normalizeOptionalString(
+    (catalog as { defaultModel?: unknown })?.defaultModel,
+  );
+  return defaultModel ? buildModelCatalogRef(providerId, defaultModel) : undefined;
 }
 
 function cloneManifestCatalogTieredCost(
@@ -142,6 +173,17 @@ function buildManifestCatalogModelInput(model: ModelCatalogModel): ModelDefiniti
   return model.input?.filter((item): item is "text" | "image" => item !== "document") ?? ["text"];
 }
 
+function cloneManifestCatalogMediaInput(
+  mediaInput?: ModelCatalogMediaInputConfig,
+): ModelDefinitionConfig["mediaInput"] | undefined {
+  if (!mediaInput?.image) {
+    return undefined;
+  }
+  return {
+    image: { ...mediaInput.image },
+  };
+}
+
 function buildManifestCatalogModel(
   providerId: string,
   model: ModelCatalogModel,
@@ -166,8 +208,10 @@ function buildManifestCatalogModel(
     contextWindow: model.contextWindow,
     ...(model.contextTokens !== undefined ? { contextTokens: model.contextTokens } : {}),
     maxTokens: model.maxTokens,
+    ...(model.thinkingLevelMap ? { thinkingLevelMap: { ...model.thinkingLevelMap } } : {}),
     ...(model.headers ? { headers: { ...model.headers } } : {}),
     ...(model.compat ? { compat: { ...model.compat } } : {}),
+    ...(model.mediaInput ? { mediaInput: cloneManifestCatalogMediaInput(model.mediaInput) } : {}),
   };
 }
 
@@ -199,6 +243,71 @@ export function buildManifestModelProviderConfig(params: {
     ...(catalog.api ? { api: catalog.api } : {}),
     ...(catalog.headers ? { headers: { ...catalog.headers } } : {}),
     models: catalog.models.map((model) => buildManifestCatalogModel(params.providerId, model)),
+  };
+}
+
+export type ManifestProviderCatalogSurface = {
+  id: string;
+  label: string;
+  catalog: unknown;
+};
+
+export type ManifestProviderCatalogEntry = {
+  id: string;
+  label: string;
+  baseUrl: string;
+  models: ModelProviderConfig["models"];
+  buildProvider: () => ModelProviderConfig;
+};
+
+/** Projects an ordered family of manifest catalogs into static provider and model surfaces. */
+export function buildManifestProviderCatalogFamily(params: {
+  surfaces: readonly ManifestProviderCatalogSurface[];
+  docsPath?: string;
+}) {
+  const entries: ManifestProviderCatalogEntry[] = params.surfaces.map((surface) => {
+    const buildProvider = () =>
+      buildManifestModelProviderConfig({
+        providerId: surface.id,
+        catalog: surface.catalog,
+      });
+    const provider = buildProvider();
+    return {
+      id: surface.id,
+      label: surface.label,
+      baseUrl: provider.baseUrl,
+      models: provider.models,
+      buildProvider,
+    };
+  });
+  const staticDiscovery: ProviderPlugin[] = entries.map(({ id, label, buildProvider }) => ({
+    id,
+    label,
+    docsPath: params.docsPath ?? "/providers/models",
+    auth: [],
+    staticCatalog: {
+      order: "simple",
+      run: async () => ({ provider: buildProvider() }),
+    },
+  }));
+
+  return {
+    entries,
+    staticDiscovery,
+    staticCatalog: async () => ({
+      providers: Object.fromEntries(entries.map(({ id, buildProvider }) => [id, buildProvider()])),
+    }),
+    augmentModelCatalog: () =>
+      entries.flatMap(({ id: provider, models }) =>
+        models.map((entry) => ({
+          provider,
+          id: entry.id,
+          name: entry.name,
+          reasoning: entry.reasoning,
+          input: [...entry.input],
+          contextWindow: entry.contextWindow,
+        })),
+      ),
   };
 }
 

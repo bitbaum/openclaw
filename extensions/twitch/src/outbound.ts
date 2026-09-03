@@ -5,14 +5,11 @@
  * Supports text and media (URL) sending with markdown stripping and chunking.
  */
 
-import {
-  createMessageReceiptFromOutboundResults,
-  defineChannelMessageAdapter,
-  type ChannelMessageSendResult,
-  type MessageReceiptPartKind,
-} from "openclaw/plugin-sdk/channel-outbound";
+import { createChannelMessageAdapterFromOutbound } from "openclaw/plugin-sdk/channel-outbound";
 import { normalizeStringEntries } from "openclaw/plugin-sdk/string-coerce-runtime";
+import { sanitizeAssistantVisibleText } from "openclaw/plugin-sdk/text-chunking";
 import { resolveTwitchAccountContext } from "./config.js";
+import { TWITCH_CHAT_MESSAGE_LIMIT } from "./constants.js";
 import { sendMessageTwitchInternal } from "./send.js";
 import type {
   ChannelOutboundAdapter,
@@ -41,7 +38,10 @@ export const twitchOutbound: ChannelOutboundAdapter = {
   },
 
   /** Twitch chat message limit is 500 characters */
-  textChunkLimit: 500,
+  textChunkLimit: TWITCH_CHAT_MESSAGE_LIMIT,
+
+  /** Strip internal assistant tool-trace scaffolding before delivery */
+  sanitizeText: ({ text }) => sanitizeAssistantVisibleText(text),
 
   /** Word-boundary chunker with markdown stripping */
   chunker: chunkTextForTwitch,
@@ -199,43 +199,7 @@ export const twitchOutbound: ChannelOutboundAdapter = {
   },
 };
 
-function toTwitchMessageSendResult(
-  result: OutboundDeliveryResult,
-  kind: MessageReceiptPartKind,
-): ChannelMessageSendResult {
-  const receipt =
-    result.receipt ??
-    createMessageReceiptFromOutboundResults({
-      results: result.messageId ? [{ channel: "twitch", messageId: result.messageId }] : [],
-      kind,
-    });
-  return {
-    messageId: result.messageId || receipt.primaryPlatformMessageId,
-    receipt,
-  };
-}
-
-export const twitchMessageAdapter = defineChannelMessageAdapter({
+export const twitchMessageAdapter = createChannelMessageAdapterFromOutbound({
   id: "twitch",
-  durableFinal: {
-    capabilities: {
-      text: true,
-      media: true,
-      messageSendingHooks: true,
-    },
-  },
-  send: {
-    text: async (ctx) => {
-      if (!twitchOutbound.sendText) {
-        throw new Error("Twitch text sending is not available.");
-      }
-      return toTwitchMessageSendResult(await twitchOutbound.sendText(ctx), "text");
-    },
-    media: async (ctx) => {
-      if (!twitchOutbound.sendMedia) {
-        throw new Error("Twitch media sending is not available.");
-      }
-      return toTwitchMessageSendResult(await twitchOutbound.sendMedia(ctx), "media");
-    },
-  },
+  outbound: twitchOutbound,
 });

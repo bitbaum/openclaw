@@ -1,6 +1,9 @@
 // Tests plugin command install, listing, and config behavior.
+import { createRequireRecord } from "openclaw/plugin-sdk/test-fixtures";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { OpenClawConfig } from "../../config/config.js";
+import type { PluginCapabilityConsentReview } from "../../plugins/capability-consent.js";
+import { ManagedPluginLifecycleError } from "../../plugins/management-lifecycle-error.js";
 import { handlePluginsCommand } from "./commands-plugins.js";
 import { buildPluginsCommandParams, type ConfigSnapshotMock } from "./commands.test-harness.js";
 
@@ -13,6 +16,22 @@ const buildPluginInspectReportMock = vi.hoisted(() => vi.fn());
 const buildAllPluginInspectReportsMock = vi.hoisted(() => vi.fn());
 const formatPluginCompatibilityNoticeMock = vi.hoisted(() => vi.fn(() => "ok"));
 const refreshPluginRegistryAfterConfigMutationMock = vi.hoisted(() => vi.fn(async () => undefined));
+const resolvePluginCapabilityConsentMock = vi.hoisted(() =>
+  vi.fn<typeof import("../../plugins/capability-consent.js").resolvePluginCapabilityConsent>(
+    async () => undefined,
+  ),
+);
+const resolvePendingPluginCapabilityReviewMock = vi.hoisted(() =>
+  vi.fn<
+    typeof import("../../plugins/capability-consent.js").resolvePendingPluginCapabilityReview
+  >(),
+);
+
+vi.mock("../../plugins/capability-consent.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../plugins/capability-consent.js")>()),
+  resolvePluginCapabilityConsent: resolvePluginCapabilityConsentMock,
+  resolvePendingPluginCapabilityReview: resolvePendingPluginCapabilityReviewMock,
+}));
 
 vi.mock("../../cli/npm-resolution.js", () => ({
   buildNpmInstallRecordFields: vi.fn(),
@@ -23,11 +42,11 @@ vi.mock("../../cli/plugins-command-helpers.js", () => ({
   resolveFileNpmSpecToLocalPath: vi.fn(() => null),
 }));
 
-vi.mock("../../cli/plugins-install-persist.js", () => ({
+vi.mock("../../plugins/install-persistence.js", () => ({
   persistPluginInstall: vi.fn(async () => undefined),
 }));
 
-vi.mock("../../cli/plugins-registry-refresh.js", () => ({
+vi.mock("../../plugins/registry-refresh.js", () => ({
   refreshPluginRegistryAfterConfigMutation: refreshPluginRegistryAfterConfigMutationMock,
 }));
 
@@ -74,11 +93,12 @@ vi.mock("../../infra/archive.js", () => ({
   resolveArchiveKind: vi.fn(() => null),
 }));
 
-vi.mock("../../infra/clawhub.js", () => ({
+vi.mock("../../infra/clawhub-spec.js", () => ({
   parseClawHubPluginSpec: vi.fn(() => null),
 }));
 
 vi.mock("../../plugins/clawhub.js", () => ({
+  CLAWHUB_INSTALL_ERROR_CODE: {},
   installPluginFromClawHub: vi.fn(),
 }));
 
@@ -134,25 +154,24 @@ const WRITE_GATEWAY_SCOPES = ["operator.admin", "operator.write", "operator.pair
 function buildPluginsParams(
   commandBodyNormalized: string,
   cfg: OpenClawConfig,
-  options?: { gatewayClientScopes?: string[] },
+  options?: { gatewayClientScopes?: string[]; omitGatewayClientScopes?: boolean },
 ) {
-  return buildPluginsCommandParams({
+  const params = buildPluginsCommandParams({
     commandBodyNormalized,
     cfg,
     gatewayClientScopes: options?.gatewayClientScopes,
   });
+  if (options?.omitGatewayClientScopes) {
+    delete params.ctx.GatewayClientScopes;
+  }
+  return params;
 }
 
 type MockCalls = {
   mock: { calls: unknown[][] };
 };
 
-function requireRecord(value: unknown, label: string): Record<string, unknown> {
-  if (!value || typeof value !== "object") {
-    throw new Error(`expected ${label}`);
-  }
-  return value as Record<string, unknown>;
-}
+const requireRecord = createRequireRecord("object", "expected-label");
 
 function getNestedRecord(record: Record<string, unknown>, key: string, label: string) {
   return requireRecord(record[key], label);
@@ -189,6 +208,8 @@ function expectLastRegistryRefresh(enabled: boolean) {
 describe("handlePluginsCommand", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resolvePluginCapabilityConsentMock.mockReset().mockResolvedValue(undefined);
+    resolvePendingPluginCapabilityReviewMock.mockReset();
     readConfigFileSnapshotMock.mockResolvedValue({
       valid: true,
       path: "/tmp/openclaw.json",
@@ -282,6 +303,41 @@ describe("handlePluginsCommand", () => {
     expect(result?.reply?.text).toContain("requires operator.admin");
   });
 
+  it("blocks channel-authorized non-owner plugin toggles before config mutation", async () => {
+    const params = buildPluginsParams("/plugins enable superpowers", buildCfg(), {
+      omitGatewayClientScopes: true,
+    });
+    params.command.channel = "telegram";
+    params.command.channelId = "telegram";
+    params.command.surface = "telegram";
+    params.command.senderId = "telegram-user-3";
+    params.command.senderIsOwner = false;
+    params.command.isAuthorizedSender = true;
+    params.ctx.Provider = "telegram";
+    params.ctx.Surface = "telegram";
+
+    const result = await handlePluginsCommand(params, true);
+
+    expect(result?.shouldContinue).toBe(false);
+    expect(readConfigFileSnapshotMock).not.toHaveBeenCalled();
+    expect(replaceConfigFileMock).not.toHaveBeenCalled();
+    expect(refreshPluginRegistryAfterConfigMutationMock).not.toHaveBeenCalled();
+  });
+
+  it("allows gateway clients with operator.admin to toggle plugins", async () => {
+    validateConfigObjectWithPluginsMock.mockImplementation((next) => ({ ok: true, config: next }));
+    const params = buildPluginsParams("/plugins disable superpowers", buildCfg(), {
+      gatewayClientScopes: ["operator.admin", "operator.write"],
+    });
+    params.command.senderIsOwner = false;
+
+    const result = await handlePluginsCommand(params, true);
+
+    expect(result?.reply?.text).toContain('Plugin "superpowers" disabled');
+    expectLastReplaceConfig(false);
+    expectLastRegistryRefresh(false);
+  });
+
   it("enables and disables a discovered plugin", async () => {
     validateConfigObjectWithPluginsMock.mockImplementation((next) => ({ ok: true, config: next }));
 
@@ -304,6 +360,86 @@ describe("handlePluginsCommand", () => {
     expect(disableResult?.reply?.text).toContain('Plugin "superpowers" disabled');
     expectLastReplaceConfig(false);
     expectLastRegistryRefresh(false);
+  });
+
+  it("does not enable a managed plugin when capability consent is required", async () => {
+    validateConfigObjectWithPluginsMock.mockImplementation((next) => ({ ok: true, config: next }));
+    const review: PluginCapabilityConsentReview = {
+      pluginId: "superpowers",
+      name: "Super Powers",
+      reviewToken: "pending-review",
+      source: { kind: "npm", spec: "@acme/superpowers", integrity: "sha512-superpowers" },
+      declared: {
+        channels: [],
+        providers: [],
+        tools: ["superpowers_run"],
+        contracts: [],
+        hooks: [],
+        mcpServers: [],
+        cliCommands: [],
+        cliBackends: [],
+        skills: [],
+        dangerousConfigFlags: [],
+      },
+      grants: {
+        hooks: {
+          allowPromptInjection: { effective: true },
+          allowConversationAccess: { effective: false },
+        },
+      },
+    };
+    resolvePendingPluginCapabilityReviewMock.mockReturnValue(review);
+    resolvePluginCapabilityConsentMock.mockImplementation(async ({ onCapabilityConsent }) => {
+      const accepted = await onCapabilityConsent?.(review);
+      if (accepted?.reviewToken !== review.reviewToken) {
+        throw new ManagedPluginLifecycleError('Plugin "superpowers" requires capability consent.', {
+          capabilityConsent: { pluginId: review.pluginId, reviewToken: review.reviewToken },
+        });
+      }
+    });
+    const params = buildPluginsParams("/plugins enable superpowers", buildCfg(), {
+      gatewayClientScopes: WRITE_GATEWAY_SCOPES,
+    });
+
+    const result = await handlePluginsCommand(params, true);
+
+    expect(result?.reply?.text).toContain("Tools: superpowers_run");
+    expect(result?.reply?.text).toContain("Integrity: sha512-superpowers");
+    expect(result?.reply?.text).toContain(
+      "rerun /plugins enable superpowers --accept-capabilities",
+    );
+    expect(replaceConfigFileMock).not.toHaveBeenCalled();
+    expect(refreshPluginRegistryAfterConfigMutationMock).not.toHaveBeenCalled();
+
+    const accepted = await handlePluginsCommand(
+      buildPluginsParams("/plugins enable superpowers --accept-capabilities", buildCfg(), {
+        gatewayClientScopes: WRITE_GATEWAY_SCOPES,
+      }),
+      true,
+    );
+
+    expect(accepted?.reply?.text).toContain('Plugin "superpowers" enabled');
+    expectLastReplaceConfig(true);
+    expectLastRegistryRefresh(true);
+  });
+
+  it.each([
+    "--accept-capabilities",
+    "--accept-capabilities superpowers",
+    "superpowers --accept-capabilities --accept-capabilities",
+  ])("rejects malformed enable consent flags: %s", async (argumentsText) => {
+    const result = await handlePluginsCommand(
+      buildPluginsParams(`/plugins enable ${argumentsText}`, buildCfg(), {
+        gatewayClientScopes: WRITE_GATEWAY_SCOPES,
+      }),
+      true,
+    );
+
+    expect(result?.reply?.text).toContain(
+      "Usage: /plugins enable <plugin-id-or-name> [--accept-capabilities]",
+    );
+    expect(readConfigFileSnapshotMock).not.toHaveBeenCalled();
+    expect(replaceConfigFileMock).not.toHaveBeenCalled();
   });
 
   it("refuses plugin enablement in Nix mode before reading or replacing config", async () => {

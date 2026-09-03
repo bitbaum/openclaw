@@ -2,24 +2,19 @@
 // Runs after install to keep packaged dist safe and compatible.
 // Keep packaged dist safe and compatible. Plugin package dependencies are
 // installed only by explicit plugin install/update flows, never postinstall.
-import { randomUUID } from "node:crypto";
 import {
-  chmodSync,
-  closeSync,
   existsSync,
   lstatSync,
-  openSync,
+  opendirSync,
   readdirSync,
   readFileSync,
   readlinkSync,
   realpathSync,
-  renameSync,
   rmdirSync,
   rmSync,
   unlinkSync,
-  writeFileSync,
 } from "node:fs";
-import { homedir, tmpdir } from "node:os";
+import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve as pathResolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { expandPackageDistImportClosure } from "./lib/package-dist-imports.mjs";
@@ -27,90 +22,15 @@ import { expandPackageDistImportClosure } from "./lib/package-dist-imports.mjs";
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_PACKAGE_ROOT = join(scriptDir, "..");
 const DISABLE_POSTINSTALL_ENV = "OPENCLAW_DISABLE_BUNDLED_PLUGIN_POSTINSTALL";
-const DISABLE_PLUGIN_REGISTRY_MIGRATION_ENV = "OPENCLAW_DISABLE_PLUGIN_REGISTRY_MIGRATION";
 const DIST_INVENTORY_PATH = "dist/postinstall-inventory.json";
+// One budget covers all three prune walks (legacy-deps prepass, file listing,
+// empty-dir sweep). npm upgrades transiently hold old+new content-hashed dist
+// files, so a real upgrade scan totals ~24k entries today (2026.6.x); keep ~4x
+// headroom so dist growth cannot fail `npm install -g` while still refusing
+// pathological/unbounded trees.
+export const MAX_INSTALLED_DIST_SCAN_ENTRIES = 100_000;
 const LEGACY_PLUGIN_RUNTIME_DEPS_DIR = "plugin-runtime-deps";
-const BAILEYS_MEDIA_FILE = join("node_modules", "baileys", "lib", "Utils", "messages-media.js");
-const BAILEYS_MEDIA_HOTFIX_NEEDLE = [
-  "        encFileWriteStream.write(mac);",
-  "        encFileWriteStream.end();",
-  "        originalFileStream?.end?.();",
-  "        stream.destroy();",
-  "        logger?.debug('encrypted data successfully');",
-].join("\n");
-const BAILEYS_MEDIA_HOTFIX_REPLACEMENT = [
-  "        encFileWriteStream.write(mac);",
-  "        const encFinishPromise = once(encFileWriteStream, 'finish');",
-  "        const originalFinishPromise = originalFileStream ? once(originalFileStream, 'finish') : Promise.resolve();",
-  "        encFileWriteStream.end();",
-  "        originalFileStream?.end?.();",
-  "        stream.destroy();",
-  "        await Promise.all([encFinishPromise, originalFinishPromise]);",
-  "        logger?.debug('encrypted data successfully');",
-].join("\n");
-const BAILEYS_MEDIA_HOTFIX_SEQUENTIAL_REPLACEMENT = [
-  "        encFileWriteStream.write(mac);",
-  "        const encFinishPromise = once(encFileWriteStream, 'finish');",
-  "        const originalFinishPromise = originalFileStream ? once(originalFileStream, 'finish') : Promise.resolve();",
-  "        encFileWriteStream.end();",
-  "        originalFileStream?.end?.();",
-  "        stream.destroy();",
-  "        await encFinishPromise;",
-  "        await originalFinishPromise;",
-  "        logger?.debug('encrypted data successfully');",
-].join("\n");
-const BAILEYS_MEDIA_HOTFIX_FINISH_PROMISES_RE =
-  /const\s+encFinishPromise\s*=\s*once\(encFileWriteStream,\s*'finish'\);\s*\n[\s\S]*const\s+originalFinishPromise\s*=\s*originalFileStream\s*\?\s*once\(originalFileStream,\s*'finish'\)\s*:\s*Promise\.resolve\(\);/u;
-const BAILEYS_MEDIA_HOTFIX_PROMISE_ALL_RE =
-  /await\s+Promise\.all\(\[\s*encFinishPromise\s*,\s*originalFinishPromise\s*\]\);/u;
-const BAILEYS_MEDIA_HOTFIX_SEQUENTIAL_AWAITS_RE =
-  /await\s+encFinishPromise;\s*(?:\/\/[^\n]*\n|\s)*await\s+originalFinishPromise;/u;
-const BAILEYS_MEDIA_DISPATCHER_NEEDLE = [
-  "                const response = await fetch(url, {",
-  "                    dispatcher: fetchAgent,",
-  "                    method: 'POST',",
-].join("\n");
-const BAILEYS_MEDIA_DISPATCHER_REPLACEMENT = [
-  "                const response = await fetch(url, {",
-  "                    method: 'POST',",
-].join("\n");
-const BAILEYS_MEDIA_DISPATCHER_HEADER_NEEDLE = [
-  "                        'Content-Type': 'application/octet-stream',",
-  "                        Origin: DEFAULT_ORIGIN",
-  "                    },",
-].join("\n");
-const BAILEYS_MEDIA_DISPATCHER_HEADER_REPLACEMENT = [
-  "                        'Content-Type': 'application/octet-stream',",
-  "                        Origin: DEFAULT_ORIGIN",
-  "                    },",
-  "                    // Baileys passes a generic agent here in some runtimes. Undici's",
-  "                    // `dispatcher` only works with Dispatcher-compatible implementations,",
-  "                    // so only wire it through when the object actually implements",
-  "                    // `dispatch`.",
-  "                    ...(typeof fetchAgent?.dispatch === 'function' ? { dispatcher: fetchAgent } : {}),",
-].join("\n");
-const BAILEYS_MEDIA_UPLOAD_WITH_FETCH_DISPATCHER_NEEDLE = [
-  "    const response = await fetch(url, {",
-  "        dispatcher: agent,",
-  "        method: 'POST',",
-].join("\n");
-const BAILEYS_MEDIA_UPLOAD_WITH_FETCH_DISPATCHER_REPLACEMENT = [
-  "    const response = await fetch(url, {",
-  "        // Baileys may pass a generic agent in some runtimes. Undici's dispatcher",
-  "        // option only accepts Dispatcher-compatible implementations, so only wire",
-  "        // it through when the object actually implements dispatch.",
-  "        ...(typeof agent?.dispatch === 'function' ? { dispatcher: agent } : {}),",
-  "        method: 'POST',",
-].join("\n");
-const BAILEYS_MEDIA_ONCE_IMPORT_RE = /import\s+\{\s*once\s*\}\s+from\s+['"]events['"]/u;
-const BAILEYS_MEDIA_ASYNC_CONTEXT_RE =
-  /async\s+function\s+encryptedStream|encryptedStream\s*=\s*async/u;
-const NODE_COMPILE_CACHE_VERSION_DIR_RE = /^v\d+\.\d+\.\d+-/u;
-
-function hasEnvFlag(env, key) {
-  const value = env?.[key]?.trim().toLowerCase();
-  return Boolean(value && value !== "0" && value !== "false" && value !== "no");
-}
+class InstalledDistScanLimitError extends Error {}
 
 function normalizeRelativePath(filePath) {
   return filePath.replace(/\\/g, "/");
@@ -197,8 +117,57 @@ function assertSafeInstalledDistPath(relativePath, params) {
   return candidatePath;
 }
 
+function createInstalledDistScanBudget(params = {}) {
+  return {
+    entries: 0,
+    limit: params.maxDistScanEntries ?? MAX_INSTALLED_DIST_SCAN_ENTRIES,
+  };
+}
+
+function resolveInstalledDistScanBudget(params = {}) {
+  return params.distScanBudget ?? createInstalledDistScanBudget(params);
+}
+
+function countInstalledDistScanEntry(budget) {
+  budget.entries += 1;
+  if (budget.entries > budget.limit) {
+    throw new InstalledDistScanLimitError(
+      `installed dist scan exceeded ${budget.limit} filesystem entries; refusing to scan unbounded package contents`,
+    );
+  }
+}
+
+function* iterateInstalledDistEntries(currentDir, params = {}) {
+  if (params.readdirSync) {
+    yield* params.readdirSync(currentDir, { withFileTypes: true });
+    return;
+  }
+
+  const dir = opendirSync(currentDir);
+  try {
+    while (true) {
+      const entry = dir.readSync();
+      if (!entry) {
+        break;
+      }
+      yield entry;
+    }
+  } finally {
+    dir.closeSync();
+  }
+}
+
+function* iterateOptionalInstalledDistEntries(currentDir, params = {}) {
+  try {
+    yield* iterateInstalledDistEntries(currentDir, params);
+  } catch (error) {
+    if (error instanceof InstalledDistScanLimitError) {
+      throw error;
+    }
+  }
+}
+
 function listInstalledDistFiles(params = {}) {
-  const readDir = params.readdirSync ?? readdirSync;
   const distRoot = resolveInstalledDistRoot(params);
   if (distRoot === null) {
     return [];
@@ -206,12 +175,14 @@ function listInstalledDistFiles(params = {}) {
   const packageRoot = params.packageRoot ?? DEFAULT_PACKAGE_ROOT;
   const pending = [distRoot.distDir];
   const files = [];
+  const budget = resolveInstalledDistScanBudget(params);
   while (pending.length > 0) {
     const currentDir = pending.pop();
     if (!currentDir) {
       continue;
     }
-    for (const entry of readDir(currentDir, { withFileTypes: true })) {
+    for (const entry of iterateInstalledDistEntries(currentDir, params)) {
+      countInstalledDistScanEntry(budget);
       const entryPath = join(currentDir, entry.name);
       if (entry.isSymbolicLink()) {
         throw new Error(
@@ -236,7 +207,6 @@ function listInstalledDistFiles(params = {}) {
 }
 
 function pruneEmptyDistDirectories(params = {}) {
-  const readDir = params.readdirSync ?? readdirSync;
   const removeDirectory = params.rmdirSync ?? rmdirSync;
   const distRoot = resolveInstalledDistRoot(params);
   if (distRoot === null) {
@@ -244,9 +214,21 @@ function pruneEmptyDistDirectories(params = {}) {
   }
   const packageRoot = params.packageRoot ?? DEFAULT_PACKAGE_ROOT;
   const pathLstat = params.lstatSync ?? lstatSync;
+  const budget = resolveInstalledDistScanBudget(params);
+
+  function isDirectoryEmpty(currentDir) {
+    for (const entry of iterateInstalledDistEntries(currentDir, params)) {
+      void entry;
+      countInstalledDistScanEntry(budget);
+      return false;
+    }
+    return true;
+  }
 
   function prune(currentDir) {
-    for (const entry of readDir(currentDir, { withFileTypes: true })) {
+    const childDirs = [];
+    for (const entry of iterateInstalledDistEntries(currentDir, params)) {
+      countInstalledDistScanEntry(budget);
       if (entry.isSymbolicLink()) {
         throw new Error(
           `unsafe dist entry: ${normalizeRelativePath(relative(packageRoot, join(currentDir, entry.name)))}`,
@@ -255,7 +237,10 @@ function pruneEmptyDistDirectories(params = {}) {
       if (!entry.isDirectory()) {
         continue;
       }
-      prune(join(currentDir, entry.name));
+      childDirs.push(join(currentDir, entry.name));
+    }
+    for (const childDir of childDirs) {
+      prune(childDir);
     }
     if (currentDir === distRoot.distDir) {
       return;
@@ -266,7 +251,7 @@ function pruneEmptyDistDirectories(params = {}) {
         `unsafe dist directory: ${normalizeRelativePath(relative(packageRoot, currentDir))}`,
       );
     }
-    if (readDir(currentDir).length === 0) {
+    if (isDirectoryEmpty(currentDir)) {
       removeDirectory(
         assertSafeInstalledDistPath(normalizeRelativePath(relative(packageRoot, currentDir)), {
           packageRoot,
@@ -285,45 +270,42 @@ function isLegacyInstalledPluginDependencyDirName(name) {
 }
 
 function pruneLegacyInstalledPluginDependencyDirs(params) {
-  const readDir = params.readdirSync ?? readdirSync;
   const removePath = params.rmSync ?? rmSync;
   const packageRoot = params.packageRoot ?? DEFAULT_PACKAGE_ROOT;
   const extensionsDir = join(packageRoot, "dist", "extensions");
+  const budget = resolveInstalledDistScanBudget(params);
   const removed = [];
-  let pluginEntries;
-  try {
-    pluginEntries = readDir(extensionsDir, { withFileTypes: true });
-  } catch {
-    return removed;
-  }
 
-  for (const pluginEntry of pluginEntries) {
+  for (const pluginEntry of iterateOptionalInstalledDistEntries(extensionsDir, params)) {
+    countInstalledDistScanEntry(budget);
     if (!pluginEntry.isDirectory() || pluginEntry.isSymbolicLink()) {
       continue;
     }
     const pluginDir = join(extensionsDir, pluginEntry.name);
-    let pluginChildren;
-    try {
-      pluginChildren = readDir(pluginDir, { withFileTypes: true });
-    } catch {
-      continue;
-    }
-    for (const childEntry of pluginChildren) {
+    const dependencyDirNames = [];
+    for (const childEntry of iterateOptionalInstalledDistEntries(pluginDir, params)) {
+      countInstalledDistScanEntry(budget);
       if (!isLegacyInstalledPluginDependencyDirName(childEntry.name)) {
         continue;
       }
-      const safePluginDir = assertSafeInstalledDistPath(
-        normalizeRelativePath(relative(packageRoot, pluginDir)),
-        {
-          packageRoot,
-          distDirReal: params.distDirReal,
-          realpathSync: params.realpathSync,
-        },
-      );
+      dependencyDirNames.push(childEntry.name);
+    }
+    if (dependencyDirNames.length === 0) {
+      continue;
+    }
+    const safePluginDir = assertSafeInstalledDistPath(
+      normalizeRelativePath(relative(packageRoot, pluginDir)),
+      {
+        packageRoot,
+        distDirReal: params.distDirReal,
+        realpathSync: params.realpathSync,
+      },
+    );
+    for (const dependencyDirName of dependencyDirNames) {
       const relativePath = normalizeRelativePath(
-        relative(packageRoot, join(pluginDir, childEntry.name)),
+        relative(packageRoot, join(pluginDir, dependencyDirName)),
       );
-      removePath(join(safePluginDir, childEntry.name), { recursive: true, force: true });
+      removePath(join(safePluginDir, dependencyDirName), { recursive: true, force: true });
       removed.push(relativePath);
     }
   }
@@ -502,11 +484,13 @@ export function pruneInstalledPackageDist(params = {}) {
   if (distRoot === null) {
     return [];
   }
+  const distScanBudget = createInstalledDistScanBudget(params);
+  const distScanParams = { ...params, distScanBudget };
   const removedLegacyDependencyDirs = pruneLegacyInstalledPluginDependencyDirs({
+    ...distScanParams,
     packageRoot,
     distDirReal: distRoot.distDirReal,
     realpathSync: params.realpathSync,
-    readdirSync: params.readdirSync,
     rmSync: params.rmSync,
   });
   let expectedFiles = params.expectedFiles ?? null;
@@ -521,7 +505,7 @@ export function pruneInstalledPackageDist(params = {}) {
       return [];
     }
   }
-  const installedFiles = listInstalledDistFiles(params);
+  const installedFiles = listInstalledDistFiles(distScanParams);
   const readFile = params.readFileSync ?? readFileSync;
   expectedFiles = new Set(
     expandPackageDistImportClosure({
@@ -555,7 +539,7 @@ export function pruneInstalledPackageDist(params = {}) {
     removed.push(relativePath);
   }
 
-  pruneEmptyDistDirectories(params);
+  pruneEmptyDistDirectories(distScanParams);
 
   if (removed.length > 0) {
     log.log(`[postinstall] pruned stale dist files: ${removed.join(", ")}`);
@@ -566,175 +550,6 @@ export function pruneInstalledPackageDist(params = {}) {
     );
   }
   return removed;
-}
-
-export function applyBaileysEncryptedStreamFinishHotfix(params = {}) {
-  const packageRoot = params.packageRoot ?? DEFAULT_PACKAGE_ROOT;
-  const pathExists = params.existsSync ?? existsSync;
-  const pathLstat = params.lstatSync ?? lstatSync;
-  const readFile = params.readFileSync ?? readFileSync;
-  const resolveRealPath = params.realpathSync ?? realpathSync;
-  const chmodFile = params.chmodSync ?? chmodSync;
-  const openFile = params.openSync ?? openSync;
-  const closeFile = params.closeSync ?? closeSync;
-  const renameFile = params.renameSync ?? renameSync;
-  const removePath = params.rmSync ?? rmSync;
-  const createTempPath =
-    params.createTempPath ??
-    ((unsafeTargetPath) =>
-      join(
-        dirname(unsafeTargetPath),
-        `.${basename(unsafeTargetPath)}.openclaw-hotfix-${randomUUID()}`,
-      ));
-  const writeFile =
-    params.writeFileSync ?? ((filePath, value) => writeFileSync(filePath, value, "utf8"));
-  const targetPath = join(packageRoot, BAILEYS_MEDIA_FILE);
-  const nodeModulesRoot = join(packageRoot, "node_modules");
-
-  function validateTargetPath() {
-    if (!pathExists(targetPath)) {
-      return { ok: false, reason: "missing" };
-    }
-
-    const targetStats = pathLstat(targetPath);
-    if (!targetStats.isFile() || targetStats.isSymbolicLink()) {
-      return { ok: false, reason: "unsafe_target", targetPath };
-    }
-
-    const nodeModulesRootReal = resolveRealPath(nodeModulesRoot);
-    const targetPathReal = resolveRealPath(targetPath);
-    const relativeTargetPath = relative(nodeModulesRootReal, targetPathReal);
-    if (relativeTargetPath.startsWith("..") || isAbsolute(relativeTargetPath)) {
-      return { ok: false, reason: "path_escape", targetPath };
-    }
-
-    return { ok: true, targetPathReal, mode: targetStats.mode & 0o777 };
-  }
-
-  try {
-    const initialTargetValidation = validateTargetPath();
-    if (!initialTargetValidation.ok) {
-      return { applied: false, reason: initialTargetValidation.reason, targetPath };
-    }
-
-    const currentText = readFile(targetPath, "utf8");
-    let patchedText = currentText;
-    let applied = false;
-
-    const encryptedStreamAlreadyPatched =
-      patchedText.includes(BAILEYS_MEDIA_HOTFIX_REPLACEMENT) ||
-      patchedText.includes(BAILEYS_MEDIA_HOTFIX_SEQUENTIAL_REPLACEMENT) ||
-      (BAILEYS_MEDIA_HOTFIX_FINISH_PROMISES_RE.test(patchedText) &&
-        (BAILEYS_MEDIA_HOTFIX_PROMISE_ALL_RE.test(patchedText) ||
-          BAILEYS_MEDIA_HOTFIX_SEQUENTIAL_AWAITS_RE.test(patchedText)));
-    const encryptedStreamPatchable = patchedText.includes(BAILEYS_MEDIA_HOTFIX_NEEDLE);
-
-    let encryptedStreamResolved = encryptedStreamAlreadyPatched;
-    if (!encryptedStreamResolved && encryptedStreamPatchable) {
-      if (!BAILEYS_MEDIA_ONCE_IMPORT_RE.test(patchedText)) {
-        return { applied: false, reason: "missing_once_import", targetPath };
-      }
-      if (!BAILEYS_MEDIA_ASYNC_CONTEXT_RE.test(patchedText)) {
-        return { applied: false, reason: "not_async_context", targetPath };
-      }
-      patchedText = patchedText.replace(
-        BAILEYS_MEDIA_HOTFIX_NEEDLE,
-        BAILEYS_MEDIA_HOTFIX_REPLACEMENT,
-      );
-      applied = true;
-      encryptedStreamResolved = true;
-    }
-
-    const dispatcherAlreadyPatched =
-      patchedText.includes(
-        "...(typeof fetchAgent?.dispatch === 'function' ? { dispatcher: fetchAgent } : {}),",
-      ) ||
-      patchedText.includes(
-        "...(typeof agent?.dispatch === 'function' ? { dispatcher: agent } : {}),",
-      ) ||
-      (patchedText.includes(
-        "const dispatcher = typeof agent?.dispatch === 'function' ? agent : undefined;",
-      ) &&
-        patchedText.includes("...(dispatcher ? { dispatcher } : {}),"));
-    const legacyDispatcherPatchable =
-      patchedText.includes(BAILEYS_MEDIA_DISPATCHER_NEEDLE) &&
-      patchedText.includes(BAILEYS_MEDIA_DISPATCHER_HEADER_NEEDLE);
-    const uploadWithFetchDispatcherPatchable = patchedText.includes(
-      BAILEYS_MEDIA_UPLOAD_WITH_FETCH_DISPATCHER_NEEDLE,
-    );
-    let dispatcherResolved = dispatcherAlreadyPatched;
-
-    if (!dispatcherResolved && legacyDispatcherPatchable) {
-      patchedText = patchedText
-        .replace(BAILEYS_MEDIA_DISPATCHER_NEEDLE, BAILEYS_MEDIA_DISPATCHER_REPLACEMENT)
-        .replace(
-          BAILEYS_MEDIA_DISPATCHER_HEADER_NEEDLE,
-          BAILEYS_MEDIA_DISPATCHER_HEADER_REPLACEMENT,
-        );
-      applied = true;
-      dispatcherResolved = true;
-    }
-
-    if (!dispatcherResolved && uploadWithFetchDispatcherPatchable) {
-      patchedText = patchedText.replace(
-        BAILEYS_MEDIA_UPLOAD_WITH_FETCH_DISPATCHER_NEEDLE,
-        BAILEYS_MEDIA_UPLOAD_WITH_FETCH_DISPATCHER_REPLACEMENT,
-      );
-      applied = true;
-      dispatcherResolved = true;
-    }
-
-    if (!dispatcherResolved) {
-      return { applied: false, reason: "unexpected_content", targetPath };
-    }
-
-    if (!applied) {
-      return { applied: false, reason: "already_patched" };
-    }
-    const tempPath = createTempPath(targetPath);
-    const tempFd = openFile(tempPath, "wx", initialTargetValidation.mode);
-    let tempFdClosed = false;
-    try {
-      writeFile(tempFd, patchedText, "utf8");
-      closeFile(tempFd);
-      tempFdClosed = true;
-      const finalTargetValidation = validateTargetPath();
-      if (!finalTargetValidation.ok) {
-        return { applied: false, reason: finalTargetValidation.reason, targetPath };
-      }
-      renameFile(tempPath, targetPath);
-      chmodFile(targetPath, initialTargetValidation.mode);
-    } finally {
-      if (!tempFdClosed) {
-        try {
-          closeFile(tempFd);
-        } catch {
-          // ignore failed-open cleanup
-        }
-      }
-      removePath(tempPath, { force: true });
-    }
-    return { applied: true, reason: "patched", targetPath };
-  } catch (error) {
-    return {
-      applied: false,
-      reason: "error",
-      targetPath,
-      error: error instanceof Error ? error.message : String(error),
-    };
-  }
-}
-
-function applyBundledPluginRuntimeHotfixes(params = {}) {
-  const log = params.log ?? console;
-  const baileysResult = applyBaileysEncryptedStreamFinishHotfix(params);
-  if (baileysResult.applied) {
-    log.log("[postinstall] patched baileys runtime hotfixes");
-    return;
-  }
-  if (baileysResult.reason !== "missing" && baileysResult.reason !== "already_patched") {
-    log.warn(`[postinstall] could not patch baileys runtime hotfixes: ${baileysResult.reason}`);
-  }
 }
 
 function resolveDistModuleUrl(packageRoot, distPath) {
@@ -756,14 +571,17 @@ export async function runPluginRegistryPostinstallMigration(params = {}) {
   const log = params.log ?? console;
   const packageRoot = params.packageRoot ?? DEFAULT_PACKAGE_ROOT;
   const env = params.env ?? process.env;
+  const pathExists = params.existsSync ?? existsSync;
 
-  if (hasEnvFlag(env, DISABLE_PLUGIN_REGISTRY_MIGRATION_ENV)) {
-    return { status: "disabled", migrated: false, reason: "disabled-env" };
+  // Registry migration belongs to installed-package upgrades. Source checkouts
+  // can contain stale dist from a different build and must not touch operator state.
+  if (isSourceCheckoutRoot({ packageRoot, existsSync: pathExists })) {
+    return { status: "skipped", reason: "source-checkout" };
   }
 
   try {
     const migrationModule = await importInstalledDistModule(
-      params,
+      { ...params, existsSync: pathExists },
       "dist/commands/doctor/shared/plugin-registry-migration.js",
     );
     if (!migrationModule) {
@@ -777,9 +595,6 @@ export async function runPluginRegistryPostinstallMigration(params = {}) {
       env,
       packageRoot,
     });
-    for (const warning of result.preflight?.deprecationWarnings ?? []) {
-      log.warn(`[postinstall] ${warning}`);
-    }
     if (result.migrated) {
       log.log(
         `[postinstall] migrated plugin registry: ${result.current.plugins.length} plugin(s) indexed`,
@@ -828,78 +643,14 @@ export function pruneBundledPluginSourceNodeModules(params = {}) {
   }
 }
 
-function shouldRunBundledPluginPostinstall(params) {
-  if (params.env?.[DISABLE_POSTINSTALL_ENV]?.trim()) {
-    return false;
-  }
-  if (!params.existsSync(params.extensionsDir)) {
-    return false;
-  }
-  return true;
-}
-
-function isCompileCachePrunePermissionDenied(error) {
-  return error?.code === "EACCES" || error?.code === "EPERM";
-}
-
-export function pruneOpenClawCompileCache(params = {}) {
-  const env = params.env ?? process.env;
-  const pathExists = params.existsSync ?? existsSync;
-  const readDir = params.readdirSync ?? readdirSync;
-  const remove = params.rmSync ?? rmSync;
-  const log = params.log ?? console;
-  const baseDirs = [
-    env.NODE_DISABLE_COMPILE_CACHE ? "" : env.NODE_COMPILE_CACHE,
-    join(tmpdir(), "node-compile-cache"),
-  ].filter((value, index, values) => value && values.indexOf(value) === index);
-
-  for (const baseDir of baseDirs) {
-    if (!pathExists(baseDir)) {
-      continue;
-    }
-    try {
-      for (const entry of readDir(baseDir, { withFileTypes: true })) {
-        if (!entry.isDirectory() || !NODE_COMPILE_CACHE_VERSION_DIR_RE.test(entry.name)) {
-          continue;
-        }
-        try {
-          remove(join(baseDir, entry.name), {
-            recursive: true,
-            force: true,
-            maxRetries: 2,
-            retryDelay: 100,
-          });
-        } catch (error) {
-          if (isCompileCachePrunePermissionDenied(error)) {
-            continue;
-          }
-          log.warn?.(`[postinstall] could not prune OpenClaw compile cache: ${String(error)}`);
-        }
-      }
-    } catch (error) {
-      if (isCompileCachePrunePermissionDenied(error)) {
-        continue;
-      }
-      log.warn?.(`[postinstall] could not prune OpenClaw compile cache: ${String(error)}`);
-    }
-  }
-}
-
 export function runBundledPluginPostinstall(params = {}) {
   const env = params.env ?? process.env;
   const packageRoot = params.packageRoot ?? DEFAULT_PACKAGE_ROOT;
-  const extensionsDir = params.extensionsDir ?? join(packageRoot, "dist", "extensions");
   const pathExists = params.existsSync ?? existsSync;
   const log = params.log ?? console;
   if (env?.[DISABLE_POSTINSTALL_ENV]?.trim()) {
     return;
   }
-  pruneOpenClawCompileCache({
-    env,
-    existsSync: pathExists,
-    rmSync: params.rmSync,
-    log,
-  });
   if (isSourceCheckoutRoot({ packageRoot, existsSync: pathExists })) {
     try {
       pruneBundledPluginSourceNodeModules({
@@ -911,13 +662,6 @@ export function runBundledPluginPostinstall(params = {}) {
     } catch (e) {
       log.warn(`[postinstall] could not prune bundled plugin source node_modules: ${String(e)}`);
     }
-    applyBundledPluginRuntimeHotfixes({
-      packageRoot,
-      existsSync: pathExists,
-      readFileSync: params.readFileSync,
-      writeFileSync: params.writeFileSync,
-      log,
-    });
     return;
   }
   pruneLegacyPluginRuntimeDepsState({
@@ -937,23 +681,6 @@ export function runBundledPluginPostinstall(params = {}) {
     readFileSync: params.readFileSync,
     readdirSync: params.readdirSync,
     rmSync: params.rmSync,
-    log,
-  });
-  if (
-    !shouldRunBundledPluginPostinstall({
-      env,
-      extensionsDir,
-      packageRoot,
-      existsSync: pathExists,
-    })
-  ) {
-    return;
-  }
-  applyBundledPluginRuntimeHotfixes({
-    packageRoot,
-    existsSync: pathExists,
-    readFileSync: params.readFileSync,
-    writeFileSync: params.writeFileSync,
     log,
   });
 }

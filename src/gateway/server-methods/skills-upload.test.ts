@@ -3,10 +3,17 @@
  */
 import { createHash, randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
-import os from "node:os";
 import path from "node:path";
 import JSZip from "jszip";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  closeOpenClawStateDatabaseForTest,
+  openOpenClawStateDatabase,
+} from "../../state/openclaw-state-db.js";
+import {
+  createOpenClawTestState,
+  type OpenClawTestState,
+} from "../../test-utils/openclaw-test-state.js";
 import type { GatewayRequestHandlers } from "./types.js";
 
 const agentScopeState = vi.hoisted(() => ({
@@ -58,6 +65,7 @@ vi.mock("../../infra/replace-file.js", async (importOriginal) => {
 });
 
 let tempDirs: string[] = [];
+let testStates: OpenClawTestState[] = [];
 
 type CallResult = {
   ok: boolean;
@@ -70,12 +78,13 @@ async function makeHarness(): Promise<{
   stateDir: string;
   workspaceDir: string;
 }> {
-  const root = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-skill-upload-handler-"));
-  tempDirs.push(root);
-  const stateDir = path.join(root, "state");
-  const workspaceDir = path.join(root, "workspace");
-  await fs.mkdir(workspaceDir, { recursive: true });
-  vi.stubEnv("OPENCLAW_STATE_DIR", stateDir);
+  const testState = await createOpenClawTestState({
+    layout: "state-only",
+    prefix: "openclaw-skill-upload-handler-",
+  });
+  testStates.push(testState);
+  const stateDir = testState.stateDir;
+  const workspaceDir = testState.workspaceDir;
   agentScopeState.workspaceDir = workspaceDir;
   vi.resetModules();
   const { skillsHandlers } = await import("./skills.js");
@@ -136,6 +145,15 @@ async function expectPathMissing(targetPath: string): Promise<void> {
   } catch (error) {
     expect((error as NodeJS.ErrnoException).code).toBe("ENOENT");
   }
+}
+
+function skillUploadExists(stateDir: string, uploadId: string): boolean {
+  const { db } = openOpenClawStateDatabase({
+    env: { ...process.env, OPENCLAW_STATE_DIR: stateDir },
+  });
+  return Boolean(
+    db.prepare("SELECT 1 AS found FROM skill_uploads WHERE upload_id = ?").get(uploadId),
+  );
 }
 
 function expectError(result: CallResult, code: string, message: string): void {
@@ -219,7 +237,7 @@ async function uploadArchive(
 describe("skill upload gateway handlers", () => {
   beforeEach(() => {
     tempDirs = [];
-    vi.unstubAllEnvs();
+    testStates = [];
     replaceFileState.publishFailureTarget = "";
     replaceFileState.publishFailures = 0;
     installSecurityScanState.evaluateSkillInstallPolicy.mockReset();
@@ -227,11 +245,12 @@ describe("skill upload gateway handlers", () => {
   });
 
   afterEach(async () => {
-    vi.unstubAllEnvs();
     vi.restoreAllMocks();
-    await Promise.all(
-      tempDirs.splice(0).map((dir) => fs.rm(dir, { recursive: true, force: true })),
-    );
+    closeOpenClawStateDatabaseForTest();
+    await Promise.all([
+      ...tempDirs.splice(0).map((dir) => fs.rm(dir, { recursive: true, force: true })),
+      ...testStates.splice(0).map((state) => state.cleanup()),
+    ]);
   });
 
   it("rejects upload archive RPCs and upload installs when disabled by config", async () => {
@@ -295,7 +314,8 @@ describe("skill upload gateway handlers", () => {
       fs.readFile(path.join(workspaceDir, "skills", "uploaded-demo", "SKILL.md"), "utf8"),
     ).resolves.toContain("Uploaded Demo");
     await expectPathMissing(path.join(workspaceDir, "skills", "archive-internal-name"));
-    await expectPathMissing(path.join(stateDir, "tmp", "skill-uploads", uploadId));
+    expect(skillUploadExists(stateDir, uploadId)).toBe(false);
+    await expectPathMissing(path.join(stateDir, "tmp", "skill-uploads"));
 
     const status = await call(handlers, "skills.status", {});
     expect(status.ok).toBe(true);
@@ -375,7 +395,7 @@ describe("skill upload gateway handlers", () => {
 
     expect(install.ok).toBe(false);
     expectError(install, "INVALID_REQUEST", "install sha256 does not match uploaded archive");
-    await expectPathMissing(path.join(stateDir, "tmp", "skill-uploads", upload.uploadId));
+    expect(skillUploadExists(stateDir, upload.uploadId)).toBe(false);
   });
 
   it("rejects expired committed uploads through skills.install", async () => {
@@ -384,16 +404,9 @@ describe("skill upload gateway handlers", () => {
       archive: await makeSkillArchive({}),
       slug: "expired-skill",
     });
-    const metadataPath = path.join(
-      stateDir,
-      "tmp",
-      "skill-uploads",
-      upload.uploadId,
-      "metadata.json",
-    );
-    const metadata = JSON.parse(await fs.readFile(metadataPath, "utf8")) as { expiresAt: number };
-    metadata.expiresAt = Date.now() - 1;
-    await fs.writeFile(metadataPath, `${JSON.stringify(metadata, null, 2)}\n`, "utf8");
+    openOpenClawStateDatabase({ env: { ...process.env, OPENCLAW_STATE_DIR: stateDir } })
+      .db.prepare("UPDATE skill_uploads SET expires_at = ? WHERE upload_id = ?")
+      .run(Date.now() - 1, upload.uploadId);
 
     const install = await call(handlers, "skills.install", {
       source: "upload",
@@ -403,7 +416,7 @@ describe("skill upload gateway handlers", () => {
 
     expect(install.ok).toBe(false);
     expectError(install, "INVALID_REQUEST", "upload has expired");
-    await expectPathMissing(path.join(stateDir, "tmp", "skill-uploads", upload.uploadId));
+    expect(skillUploadExists(stateDir, upload.uploadId)).toBe(false);
   });
 
   it("rejects invalid slugs, missing SKILL.md, and archive traversal", async () => {
@@ -428,7 +441,7 @@ describe("skill upload gateway handlers", () => {
     expect(missingInstall.ok).toBe(false);
     expect(missingInstall.error?.code).toBe("INVALID_REQUEST");
     expect(missingInstall.error?.message).toContain("SKILL.md");
-    await expectPathMissing(path.join(stateDir, "tmp", "skill-uploads", missingSkill.uploadId));
+    expect(skillUploadExists(stateDir, missingSkill.uploadId)).toBe(false);
 
     const legacyMarker = await uploadArchive(handlers, {
       archive: await makeSkillArchive({
@@ -445,7 +458,7 @@ describe("skill upload gateway handlers", () => {
     expect(legacyMarkerInstall.ok).toBe(false);
     expect(legacyMarkerInstall.error?.code).toBe("INVALID_REQUEST");
     expect(legacyMarkerInstall.error?.message).toContain("SKILL.md");
-    await expectPathMissing(path.join(stateDir, "tmp", "skill-uploads", legacyMarker.uploadId));
+    expect(skillUploadExists(stateDir, legacyMarker.uploadId)).toBe(false);
 
     const traversal = await uploadArchive(handlers, {
       archive: await makeSkillArchive({ traversal: true }),
@@ -493,7 +506,7 @@ describe("skill upload gateway handlers", () => {
     expect(scanInput.origin?.type).toBe("upload");
     expect(scanInput.origin?.uploadId).toBe(upload.uploadId);
     expect(scanInput.skillName).toBe("scan-blocked");
-    await expectPathMissing(path.join(stateDir, "tmp", "skill-uploads", upload.uploadId));
+    expect(skillUploadExists(stateDir, upload.uploadId)).toBe(false);
   });
 
   it("preserves existing installs unless force was bound at begin", async () => {
@@ -530,7 +543,7 @@ describe("skill upload gateway handlers", () => {
     expect(blockedInstall.ok).toBe(false);
     expect(blockedInstall.error?.code).toBe("INVALID_REQUEST");
     expect(blockedInstall.error?.message).toContain("already exists");
-    await expectPathMissing(path.join(stateDir, "tmp", "skill-uploads", blocked.uploadId));
+    expect(skillUploadExists(stateDir, blocked.uploadId)).toBe(false);
 
     const forced = await uploadArchive(handlers, {
       archive: await makeSkillArchive({
@@ -597,7 +610,6 @@ describe("skill upload gateway handlers", () => {
     await expect(
       fs.readFile(path.join(workspaceDir, "skills", "rollback-demo", "SKILL.md"), "utf8"),
     ).resolves.toContain("first version");
-    const uploadStat = await fs.stat(path.join(stateDir, "tmp", "skill-uploads", forced.uploadId));
-    expect(uploadStat.isDirectory()).toBe(true);
+    expect(skillUploadExists(stateDir, forced.uploadId)).toBe(true);
   });
 });

@@ -4,7 +4,12 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { appendWorkspaceMountArgs } from "./workspace-mounts.js";
+import {
+  appendWorkspaceMountArgs,
+  filterBindsConflictingWithProtectedMounts,
+  resolveProtectedSkillMountContainerPaths,
+  type ReadOnlyWorkspaceSkillMount,
+} from "./workspace-mounts.js";
 
 const tmpDirs: string[] = [];
 
@@ -173,6 +178,32 @@ describe("appendWorkspaceMountArgs", () => {
     ]);
   });
 
+  it("overlays materialized sandbox skills read-only when workspaceAccess is rw", () => {
+    const agentWorkspaceDir = makeTempWorkspace();
+    const skillsWorkspaceDir = makeTempWorkspace();
+    const materializedSkillsDir = path.join(skillsWorkspaceDir, "skills");
+    fs.mkdirSync(path.join(materializedSkillsDir, "demo"), { recursive: true });
+    fs.writeFileSync(path.join(materializedSkillsDir, "demo", "SKILL.md"), "# Demo\n");
+
+    const args: string[] = [];
+    appendWorkspaceMountArgs({
+      args,
+      workspaceDir: agentWorkspaceDir,
+      agentWorkspaceDir,
+      skillsWorkspaceDir,
+      workdir: "/workspace",
+      workspaceAccess: "rw",
+    });
+
+    const mounts = args.filter(
+      (arg) => arg.startsWith(agentWorkspaceDir) || arg.startsWith(skillsWorkspaceDir),
+    );
+    expect(mounts).toEqual([
+      `${agentWorkspaceDir}:/workspace:z`,
+      `${materializedSkillsDir}:/workspace/.openclaw/sandbox-skills/skills:ro,z`,
+    ]);
+  });
+
   it("does not add a separate synced skill overlay when workspaceAccess is ro", () => {
     const agentWorkspaceDir = makeTempWorkspace();
     const sandboxWorkspaceDir = makeTempWorkspace();
@@ -222,5 +253,83 @@ describe("appendWorkspaceMountArgs", () => {
     expect(mounts).not.toContain(
       `${path.join(sandboxWorkspaceDir, "skills")}:/workspace/skills:ro,z`,
     );
+  });
+});
+
+describe("resolveProtectedSkillMountContainerPaths", () => {
+  it("returns an empty set for empty mounts", () => {
+    const paths = resolveProtectedSkillMountContainerPaths([]);
+    expect(paths.size).toBe(0);
+  });
+
+  it("returns container paths from skill mounts", () => {
+    const mounts: ReadOnlyWorkspaceSkillMount[] = [
+      { hostPath: "/host/skills", containerPath: "/workspace/skills" },
+      { hostPath: "/host/.agents/skills", containerPath: "/workspace/./.agents/skills/" },
+    ];
+    const paths = resolveProtectedSkillMountContainerPaths(mounts);
+    expect(paths).toEqual(new Set(["/workspace/skills", "/workspace/.agents/skills"]));
+  });
+});
+
+describe("filterBindsConflictingWithProtectedMounts", () => {
+  const protectedPaths = new Set(["/workspace/skills", "/workspace/.agents/skills"]);
+
+  it("returns empty array when binds is undefined", () => {
+    expect(filterBindsConflictingWithProtectedMounts(undefined, protectedPaths)).toEqual([]);
+  });
+
+  it("returns empty array when binds is empty", () => {
+    expect(filterBindsConflictingWithProtectedMounts([], protectedPaths)).toEqual([]);
+  });
+
+  it("returns all binds when protected paths are empty", () => {
+    const binds = ["/host/custom:/workspace/skills:rw"];
+    expect(filterBindsConflictingWithProtectedMounts(binds, new Set())).toEqual(binds);
+  });
+
+  it("skips a bind whose container path matches a protected mount", () => {
+    const filtered = filterBindsConflictingWithProtectedMounts(
+      ["/host/custom:/workspace/skills:rw", "/host/other:/data:rw"],
+      protectedPaths,
+    );
+    expect(filtered).toEqual(["/host/other:/data:rw"]);
+  });
+
+  it("skips multiple binds when multiple conflict", () => {
+    const filtered = filterBindsConflictingWithProtectedMounts(
+      ["/host/a:/workspace/skills:ro", "/host/b:/workspace/.agents/skills:ro", "/host/c:/data:rw"],
+      protectedPaths,
+    );
+    expect(filtered).toEqual(["/host/c:/data:rw"]);
+  });
+
+  it("returns all binds when none conflict", () => {
+    const binds = ["/host/a:/data:rw", "/host/b:/tmp:ro"];
+    expect(filterBindsConflictingWithProtectedMounts(binds, protectedPaths)).toEqual(binds);
+  });
+
+  it("skips all binds when every one conflicts with a protected path", () => {
+    const filtered = filterBindsConflictingWithProtectedMounts(
+      ["/host/a:/workspace/skills:ro", "/host/b:/workspace/.agents/skills:ro"],
+      protectedPaths,
+    );
+    expect(filtered).toEqual([]);
+  });
+
+  it("handles rw binds (no :ro option) correctly", () => {
+    const filtered = filterBindsConflictingWithProtectedMounts(
+      ["/host/custom:/workspace/skills"],
+      protectedPaths,
+    );
+    expect(filtered).toEqual([]);
+  });
+
+  it("normalizes trailing slashes in container paths", () => {
+    const filtered = filterBindsConflictingWithProtectedMounts(
+      ["/host/custom:/workspace/skills/"],
+      protectedPaths,
+    );
+    expect(filtered).toEqual([]);
   });
 });

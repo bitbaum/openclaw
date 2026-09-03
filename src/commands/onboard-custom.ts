@@ -4,15 +4,16 @@
  * The pure config helpers are re-exported from here because setup and configure
  * flows import this command module as their custom API entrypoint.
  */
-import { modelKey } from "../agents/model-selection.js";
 import type { OpenClawConfig } from "../config/types.openclaw.js";
 import type { SecretInput } from "../config/types.secrets.js";
+import { loadManifestMetadataSnapshot } from "../plugins/manifest-contract-eligibility.js";
 import { ensureApiKeyFromEnvOrPrompt } from "../plugins/provider-auth-input.js";
 import type { RuntimeEnv } from "../runtime.js";
 import { fetchWithTimeout } from "../utils/fetch-timeout.js";
 import { normalizeSecretInput } from "../utils/normalize-secret-input.js";
 import { t } from "../wizard/i18n/index.js";
 import type { WizardPrompter } from "../wizard/prompts.js";
+import type { OnboardingAgentTarget } from "./onboard-agent-target.js";
 import {
   applyCustomApiConfig,
   buildAnthropicVerificationProbeRequest,
@@ -25,25 +26,6 @@ import {
   resolveCustomProviderId,
   type CustomApiCompatibility,
   type CustomApiResult,
-} from "./onboard-custom-config.js";
-export {
-  applyCustomApiConfig,
-  buildAnthropicVerificationProbeRequest,
-  buildOpenAiVerificationProbeRequest,
-  CustomApiError,
-  inferCustomModelSupportsImageInput,
-  parseNonInteractiveCustomApiFlags,
-  resolveCustomModelImageInputInference,
-  resolveCustomProviderId,
-  type ApplyCustomApiConfigParams,
-  type CustomApiCompatibility,
-  type CustomApiErrorCode,
-  type CustomModelImageInputInference,
-  type CustomApiResult,
-  type ParseNonInteractiveCustomApiFlagsParams,
-  type ParsedNonInteractiveCustomApiFlags,
-  type ResolveCustomProviderIdParams,
-  type ResolvedCustomProviderId,
 } from "./onboard-custom-config.js";
 import type { SecretInputMode } from "./onboard-types.js";
 
@@ -117,8 +99,9 @@ async function requestVerification(params: {
   headers: Record<string, string>;
   body: Record<string, unknown>;
 }): Promise<VerificationResult> {
+  let res: Response | undefined;
   try {
-    const res = await fetchWithTimeout(
+    res = await fetchWithTimeout(
       params.endpoint,
       {
         method: "POST",
@@ -142,6 +125,8 @@ async function requestVerification(params: {
     return { ok: res.ok, status: res.status };
   } catch (error) {
     return { ok: false, error };
+  } finally {
+    await res?.body?.cancel().catch(() => undefined);
   }
 }
 
@@ -254,9 +239,16 @@ export async function promptCustomApiConfig(params: {
   prompter: WizardPrompter;
   runtime: RuntimeEnv;
   config: OpenClawConfig;
+  target?: OnboardingAgentTarget;
   secretInputMode?: SecretInputMode;
+  setAsPrimary?: boolean;
 }): Promise<CustomApiResult> {
   const { prompter, runtime, config } = params;
+  const manifestPlugins = loadManifestMetadataSnapshot({
+    config,
+    workspaceDir: params.target?.workspaceDir,
+    env: process.env,
+  }).plugins;
 
   const baseInput = await promptBaseUrlAndKey({
     prompter,
@@ -406,8 +398,13 @@ export async function promptCustomApiConfig(params: {
       });
       // Alias validation must use the post-collision provider id, otherwise a
       // renamed endpoint could incorrectly collide with the requested id.
-      const modelRef = modelKey(resolvedProvider.providerId, modelId);
-      return resolveCustomModelAliasError({ raw: value, cfg: config, modelRef });
+      return resolveCustomModelAliasError({
+        raw: value,
+        cfg: config,
+        modelRef: { provider: resolvedProvider.providerId, model: modelId },
+        manifestPlugins,
+        agentId: params.target?.agentId,
+      });
     },
   });
   const imageInputInference = resolveCustomModelImageInputInference(modelId);
@@ -427,7 +424,10 @@ export async function promptCustomApiConfig(params: {
     apiKey,
     providerId: providerIdInput,
     alias: aliasInput,
+    manifestPlugins,
     supportsImageInput,
+    ...(params.target ? { target: params.target } : {}),
+    ...(params.setAsPrimary === false ? { setAsPrimary: false } : {}),
   });
 
   if (result.providerIdRenamedFrom && result.providerId) {
