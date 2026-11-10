@@ -8,8 +8,15 @@ packages:
 minimumReleaseAge: 2880
 minimumReleaseAgeStrict: true
 
+# Our own packages are published by our own tagged workflows; minimumReleaseAge
+# would refuse each fresh publish until it ages. One scope glob covers every
+# @bitbaum package; the four unscoped ones are named (fleet SHARED.md).
 minimumReleaseAgeExclude:
-  # GHSA-58mr-gqgx-xq4g / GHSA-qw65-cvwx-89v3 security fix; remove after 2026-09-09.
+  - "@bitbaum/*"
+  - limitkit
+  - bip-kit
+  - threadkit
+  - ai-forms
   - "fast-uri@4.1.4"
   - "@openclaw/crabline@0.1.19"
   - "@openclaw/fs-safe@0.5.5"
